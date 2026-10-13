@@ -5,10 +5,12 @@
   "type": "module",
   "description": "Procedural three.js game assets (generated with the threejs-asset-generator skill).",
   "scripts": {
+    "start": "node tools/build-registry.mjs && node tools/serve.mjs",
+    "serve": "node tools/build-registry.mjs && node tools/serve.mjs",
+    "dev": "node tools/build-registry.mjs && node tools/serve.mjs",
     "new": "node tools/new-asset.mjs",
     "registry": "node tools/build-registry.mjs",
     "validate": "node tools/build-registry.mjs && node tools/validate.mjs",
-    "serve": "node tools/build-registry.mjs && node tools/serve.mjs",
     "export": "node tools/export-glb.mjs"
   },
   "dependencies": {

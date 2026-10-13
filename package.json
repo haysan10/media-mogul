@@ -1,0 +1,15 @@
+{
+  "name": "media-mogul-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Media Mogul — 3D Media Tycoon Simulation Game",
+  "scripts": {
+    "start": "node media-mogul/tools/serve.mjs",
+    "serve": "node media-mogul/tools/serve.mjs",
+    "dev": "node media-mogul/tools/serve.mjs",
+    "build": "npm --prefix media-mogul run registry",
+    "validate": "npm --prefix media-mogul run validate",
+    "registry": "npm --prefix media-mogul run registry"
+  }
+}
