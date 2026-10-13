@@ -1,0 +1,3075 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Mogul - Tycoon Simulasi Kerajaan Media</title>
+  <!-- Three.js r128 CDN (Standar Tanpa Plugin Eksternal) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    /* ========================================================
+       RESET & ROOT VARIABLES
+       ======================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    :root {
+      --bg-dark: #0f172a;
+      --panel-bg: rgba(15, 23, 42, 0.88);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --panel-glow: rgba(59, 130, 246, 0.2);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-green: #10b981;
+      --accent-gold: #f59e0b;
+      --accent-blue: #3b82f6;
+      --accent-red: #ef4444;
+      --accent-purple: #a855f7;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: var(--font-family);
+      color: var(--text-main);
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: grab;
+    }
+    #canvas-container:active {
+      cursor: grabbing;
+    }
+
+    /* ========================================================
+       TOP HUD (SUMBER DAYA & STATUS)
+       ======================================================== */
+    #hud-top {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      pointer-events: auto;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .era-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #93c5fd;
+      display: inline-block;
+      cursor: pointer;
+    }
+
+    .stat-group {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .cash-val { color: var(--accent-green); }
+    .rep-val { color: var(--accent-gold); }
+    .aud-val { color: #38bdf8; }
+    .profit-pos { color: var(--accent-green); }
+    .profit-neg { color: var(--accent-red); }
+
+    /* Controls Bar (Speed & Actions) */
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-icon {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    .btn-icon:active {
+      transform: translateY(0);
+    }
+    .btn-icon.active {
+      background: var(--accent-blue);
+      border-color: #60a5fa;
+      color: #fff;
+    }
+
+    /* Sub HUD: Bottom Left Navigation Controls & Info */
+    #hud-bottom {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .action-panel {
+      pointer-events: auto;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 8px 12px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 9px 15px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.15s ease;
+    }
+    .action-btn:hover {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: var(--accent-blue);
+    }
+    .action-btn.primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-color: #3b82f6;
+    }
+    .action-btn.primary:hover {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .camera-help {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      pointer-events: auto;
+    }
+
+    /* ========================================================
+       MODALS & DIALOGS
+       ======================================================== */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(6px);
+      z-index: 50;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #111827;
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 620px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.08);
+      overflow: hidden;
+      animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalPop {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 16px 22px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+
+    .modal-body {
+      padding: 20px 22px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-footer {
+      padding: 14px 22px;
+      background: rgba(255, 255, 255, 0.02);
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Cards inside modals */
+    .option-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+    .option-card:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: var(--accent-blue);
+    }
+    .option-card.locked {
+      opacity: 0.45;
+      cursor: not-allowed;
+      border-style: dashed;
+    }
+    .option-card.locked:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--panel-border);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-name {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .card-cost {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+    .card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .card-stats {
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-top: 4px;
+    }
+
+    /* Sliders & Form controls */
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .control-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #334155;
+      outline: none;
+    }
+    .control-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+
+    /* Staff Table */
+    .staff-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .staff-table th {
+      text-align: left;
+      color: var(--text-muted);
+      padding: 6px 8px;
+      font-size: 11px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .staff-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .staff-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--panel-border);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .staff-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Floating Money & Notifications */
+    #floating-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+      overflow: hidden;
+    }
+    .floating-money {
+      position: absolute;
+      font-weight: 800;
+      font-size: 15px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      transform: translate(-50%, -50%);
+      animation: floatFade 1.6s forwards ease-out;
+    }
+    @keyframes floatFade {
+      0% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -45px); }
+    }
+
+    /* Toast Container */
+    #toast-container {
+      position: absolute;
+      top: 75px;
+      right: 18px;
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      background: #1e293b;
+      border: 1px solid var(--panel-border);
+      border-left: 4px solid var(--accent-blue);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #fff;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+      animation: slideIn 0.25s ease-out;
+      max-width: 340px;
+    }
+    .toast.success { border-left-color: var(--accent-green); }
+    .toast.warn { border-left-color: var(--accent-gold); }
+    .toast.danger { border-left-color: var(--accent-red); }
+
+    @keyframes slideIn {
+      0% { transform: translateX(40px); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Market Share Bars */
+    .market-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .market-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .market-track {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .market-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.3s ease;
+    }
+
+    /* Research Tree Nodes */
+    .research-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .research-node {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+    .research-node.completed {
+      border-color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.08);
+    }
+    .research-node.available {
+      border-color: var(--accent-blue);
+      cursor: pointer;
+    }
+    .research-node.available:hover {
+      background: rgba(59, 130, 246, 0.12);
+    }
+    .research-node.locked {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Badge & Tag */
+    .pill-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+    .pill-green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .pill-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .pill-gray { background: rgba(255, 255, 255, 0.1); color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- 3D Canvas Container -->
+  <div id="canvas-container"></div>
+  
+  <!-- Floating Text Layer -->
+  <div id="floating-container"></div>
+  
+  <!-- Toasts -->
+  <div id="toast-container"></div>
+
+  <!-- HUD Atas -->
+  <header id="hud-top">
+    <!-- Brand & Era -->
+    <div class="hud-card">
+      <div>
+        <div class="brand-title">MEDIA MOGUL</div>
+        <div id="hud-date" style="font-size: 11px; color: var(--text-muted); font-weight: 500;">
+          Tahun 1920 • Bulan 1, Hari 1
+        </div>
+      </div>
+      <div id="hud-era" class="era-badge" title="Klik untuk info Era">
+        Era 1: Koran
+      </div>
+    </div>
+
+    <!-- Core Resources -->
+    <div class="hud-card stat-group">
+      <div class="stat-item">
+        <span class="stat-label">Kas Perusahaan</span>
+        <span id="hud-cash" class="stat-value cash-val">Rp 25.000.000</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Reputasi Pers</span>
+        <span id="hud-rep" class="stat-value rep-val">50 / 100</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Total Pembaca/Audiens</span>
+        <span id="hud-audience" class="stat-value aud-val">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Laba Bersih/Bln</span>
+        <span id="hud-profit" class="stat-value profit-pos">Rp 0</span>
+      </div>
+    </div>
+
+    <!-- Speed Controls -->
+    <div class="hud-card controls-group">
+      <button class="btn-icon" id="btn-speed-0" title="Jeda Game">⏸</button>
+      <button class="btn-icon active" id="btn-speed-1" title="Kecepatan Normal">1x</button>
+      <button class="btn-icon" id="btn-speed-2" title="Kecepatan 2x">2x</button>
+      <button class="btn-icon" id="btn-speed-5" title="Kecepatan 5x">5x</button>
+    </div>
+  </header>
+
+  <!-- HUD Bawah -->
+  <footer id="hud-bottom">
+    <div class="action-panel">
+      <button class="action-btn primary" id="btn-open-market">
+        📊 Pasar & Pesaing
+      </button>
+      <button class="action-btn" id="btn-open-research">
+        🔬 Riset Teknologi (<span id="res-available-count">0</span>)
+      </button>
+      <button class="action-btn" id="btn-open-report">
+        📑 Laporan Finansial
+      </button>
+      <button class="action-btn" id="btn-reset-game" style="color: #f87171;">
+        🔄 Reset Game
+      </button>
+    </div>
+
+    <div class="camera-help">
+      🖱️ <b>Navigasi:</b> Drag mouse untuk geser • Scroll roda untuk Zoom • Klik kavling untuk kelola
+    </div>
+  </footer>
+
+  <!-- ========================================================
+       MODAL: BANGUN UNIT BARU
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-build">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">🏗️ Bangun Unit Media Baru</div>
+        <button class="modal-close" onclick="closeModal('modal-build')">&times;</button>
+      </div>
+      <div class="modal-body" id="build-options-container">
+        <!-- Rendered via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" onclick="closeModal('modal-build')">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: KELOLA UNIT MEDIA
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-unit">
+    <div class="modal-box" style="max-width: 660px;">
+      <div class="modal-header">
+        <div class="modal-title" id="unit-modal-title">📰 Kelola Percetakan Koran</div>
+        <button class="modal-close" onclick="closeModal('modal-unit')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Summary Stats Card -->
+        <div class="option-card" style="cursor: default;">
+          <div class="card-top">
+            <span style="font-size: 16px; font-weight:700;" id="unit-stat-name">Koran Harian Merdeka</span>
+            <span class="pill-tag pill-blue" id="unit-stat-level">Level 1</span>
+          </div>
+          <div class="card-stats">
+            <span>👥 Audiens: <b id="unit-stat-aud">15.000</b></span>
+            <span>💰 Pendapatan: <b class="profit-pos" id="unit-stat-rev">Rp 3.500.000</b>/bln</span>
+            <span>💸 Biaya Operasional: <b class="profit-neg" id="unit-stat-cost">Rp 1.800.000</b>/bln</span>
+          </div>
+        </div>
+
+        <!-- Slider Alokasi Anggaran -->
+        <div style="background: rgba(255,255,255,0.02); padding: 14px; border-radius: 10px; border: 1px solid var(--panel-border);">
+          <div style="font-size: 13px; font-weight:700; margin-bottom: 10px; color:#cbd5e1;">
+            ⚖️ Alokasi Anggaran Konten & Monetisasi
+          </div>
+          
+          <div class="control-row" style="margin-bottom: 12px;">
+            <div class="control-header">
+              <span>Kualitas Jurnalisme (<span id="val-slider-quality">40</span>%)</span>
+              <span style="font-size: 11px; color: var(--accent-green);">+Audiens & Reputasi Pers</span>
+            </div>
+            <input type="range" class="control-slider" id="slider-quality" min="10" max="80" value="40">
+          </div>
+
+          <div class="control-row" style="margin-bottom: 12px;">
+            <div class="control-header">
+              <span>Kuantitas / Jangkauan Viral (<span id="val-slider-quantity">30</span>%)</span>
+              <span style="font-size: 11px; color: #60a5fa;">+Pertumbuhan Pembaca Baru</span>
+            </div>
+            <input type="range" class="control-slider" id="slider-quantity" min="10" max="80" value="30">
+          </div>
+
+          <div class="control-row">
+            <div class="control-header">
+              <span>Intensitas Iklan (<span id="val-slider-ads">30</span>%)</span>
+              <span style="font-size: 11px; color: var(--accent-gold);">+Uang Iklan (Jika >50% audiens jenuh!)</span>
+            </div>
+            <input type="range" class="control-slider" id="slider-ads" min="10" max="80" value="30">
+          </div>
+        </div>
+
+        <!-- Staff Management -->
+        <div style="background: rgba(255,255,255,0.02); padding: 14px; border-radius: 10px; border: 1px solid var(--panel-border);">
+          <div style="font-size: 13px; font-weight:700; margin-bottom: 8px; color:#cbd5e1;">
+            👥 Rekrutmen & Manajemen Staf Redaksi
+          </div>
+          <table class="staff-table">
+            <thead>
+              <tr>
+                <th>Profesi</th>
+                <th>Efek</th>
+                <th>Gaji/Bln</th>
+                <th>Jumlah</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="unit-staff-tbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Unit Upgrades & Actions -->
+        <div style="display:flex; justify-content:space-between; gap:10px; margin-top:4px;">
+          <button class="action-btn primary" id="btn-upgrade-unit" style="flex:1; justify-content:center;">
+            ⭐ Tingkatkan ke Level <span id="upgrade-target-level">2</span> (<span id="upgrade-cost-text">Rp 8.000.000</span>)
+          </button>
+          <button class="action-btn" id="btn-demolish-unit" style="color:#f87171; border-color:rgba(239,68,68,0.4);">
+            🗑️ Jual/Hancurkan Unit
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn primary" onclick="closeModal('modal-unit')">Simpan & Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: RISET TEKNOLOGI
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-research">
+    <div class="modal-box" style="max-width: 680px;">
+      <div class="modal-header">
+        <div class="modal-title">🔬 Pohon Riset & Inovasi Media</div>
+        <button class="modal-close" onclick="closeModal('modal-research')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Riset membuka era baru, efisiensi operasional, serta fitur monetisasi eksklusif.
+        </div>
+        <div class="research-grid" id="research-nodes-container">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" onclick="closeModal('modal-research')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: PASAR & PESAING (MARKET SHARE)
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-market">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">📊 Pangsa Pasar & Kompetitor</div>
+        <button class="modal-close" onclick="closeModal('modal-market')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Target Kemenangan -->
+        <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); padding: 12px 14px; border-radius: 10px;">
+          <div style="font-size: 13px; font-weight:700; color: #34d399; margin-bottom: 4px;">
+            🏆 Syarat Kemenangan Akhir:
+          </div>
+          <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+            Capai <b>Era Sosial Media</b> dan raih peringkat <b>#1 Pangsa Pasar</b> selama <b>12 bulan berturut-turut</b>.
+          </div>
+          <div style="margin-top: 8px; font-size: 13px; font-weight: 700;">
+            Status Kemenangan: <span id="market-win-tracker" style="color: var(--accent-gold);">0 / 12 Bulan</span>
+          </div>
+        </div>
+
+        <!-- Leaderboard Bars -->
+        <div id="market-competitors-list" style="margin-top: 6px;">
+          <!-- Rendered via JS -->
+        </div>
+
+        <!-- Synergy Info -->
+        <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); padding: 12px; border-radius: 10px; font-size: 12px;">
+          <div style="font-weight: 700; color:#93c5fd; margin-bottom: 4px;">🔗 Bonus Sinergi Lintas Media (Cross-Promotion):</div>
+          <div id="synergy-status-text" style="color:#cbd5e1;">Memiliki beberapa tipe media sekaligus memberikan bonus audiens.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" onclick="closeModal('modal-market')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: EVENT BERITA ACAK
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-event">
+    <div class="modal-box" style="max-width: 540px; border-color: rgba(245, 158, 11, 0.4);">
+      <div class="modal-header" style="background: rgba(245, 158, 11, 0.1);">
+        <div class="modal-title" style="color: #fbbf24;">⚡ Peristiwa Redaksi Mendesak!</div>
+      </div>
+      <div class="modal-body">
+        <div id="event-title" style="font-size: 18px; font-weight: 800; color: #fff;">
+          Skandal Korupsi Pejabat Tinggi
+        </div>
+        <div id="event-desc" style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
+          Wartawan kita menemukan dokumen rahasia keterlibatan walikota dalam suap proyek pelabuhan. Pihak balai kota mengancam gugatan hukum.
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+          <button class="action-btn" id="event-btn-a" style="justify-content: flex-start; text-align: left; padding: 12px; height: auto;">
+            <div>
+              <div style="font-weight: 700; color:#fff;" id="event-opt-a-title">Opsi A: Bongkar Skandal!</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="event-opt-a-desc">+Reputasi, risiko biaya hukum</div>
+            </div>
+          </button>
+          <button class="action-btn" id="event-btn-b" style="justify-content: flex-start; text-align: left; padding: 12px; height: auto;">
+            <div>
+              <div style="font-weight: 700; color:#fff;" id="event-opt-b-title">Opsi B: Simpan demi Iklan Pemkot</div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="event-opt-b-desc">+Uang cepat, -Reputasi jurnalisme</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: LAPORAN KEUANGAN BULANAN
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-report">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">📑 Laporan Keuangan Bulanan</div>
+        <button class="modal-close" onclick="closeModal('modal-report')">&times;</button>
+      </div>
+      <div class="modal-body" id="report-content">
+        <!-- Rendered via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn primary" onclick="closeModal('modal-report')">Mengerti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: PENJELASAN ERA
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-era-info">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">⏳ Garis Waktu & Syarat Era Baru</div>
+        <button class="modal-close" onclick="closeModal('modal-era-info')">&times;</button>
+      </div>
+      <div class="modal-body" id="era-info-content">
+        <!-- Rendered via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" onclick="closeModal('modal-era-info')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL: GAME OVER / VICTORY
+       ======================================================== -->
+  <div class="modal-overlay" id="modal-endgame">
+    <div class="modal-box" style="text-align: center; max-width: 500px;">
+      <div class="modal-body" style="padding: 30px 24px;">
+        <div id="endgame-icon" style="font-size: 54px; margin-bottom: 12px;">🏆</div>
+        <div id="endgame-title" style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">
+          Kemenangan Mutlak!
+        </div>
+        <div id="endgame-desc" style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+          Anda berhasil menguasai era sosial media dan menjadi raja media tak tertandingi!
+        </div>
+        <div id="endgame-stats" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 10px; margin-bottom: 20px; text-align: left; font-size: 13px;">
+          <!-- Stats Summary -->
+        </div>
+        <button class="action-btn primary" id="btn-endgame-restart" style="width: 100%; justify-content: center; padding: 12px;">
+          Main Lagi dari Awal
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========================================================
+     JAVASCRIPT INLINE (SEMUA LOGIKA GAME & THREE.JS)
+     ======================================================== -->
+<script>
+// ==========================================
+// 1. CONFIG
+// ==========================================
+const CONFIG = {
+  // Waktu: 1 detik = 1 hari pada kecepatan 1x
+  TICK_RATE_MS: 1000,
+  DAYS_PER_MONTH: 30,
+
+  // Sumber Daya Awal
+  STARTING_CASH: 22000000, // Rp 22 Juta (cukup untuk unit koran + staf)
+  STARTING_REPUTATION: 50, // 0 - 100
+
+  // Kamera
+  CAMERA: {
+    MIN_ZOOM: 14,
+    MAX_ZOOM: 62,
+    INITIAL_ZOOM: 28,
+    PAN_SPEED: 0.05,
+  },
+
+  // Grid Diorama (6x6)
+  GRID: {
+    SIZE: 6,
+    CELL_SIZE: 3.4,
+    SPACING: 0.8,
+  },
+
+  // Era Game (6 Era Bersejarah)
+  ERAS: [
+    {
+      id: 1,
+      name: "Era Koran",
+      year: 1920,
+      unlockCost: 0,
+      unlockRep: 0,
+      reqResearch: null,
+      desc: "Percetakan koran fisik hitam-putih & iklan baris.",
+      theme: { bg: 0xd9ccb5, fog: 0xd0c1a8, light: 0xfff3db, ambient: 0x9e8a70 }
+    },
+    {
+      id: 2,
+      name: "Era Majalah",
+      year: 1950,
+      unlockCost: 35000000,
+      unlockRep: 30,
+      reqResearch: "res_magazine",
+      desc: "Penerbitan majalah gaya hidup glossy & iklan foto berwarna.",
+      theme: { bg: 0xd6d0c4, fog: 0xc8c0b2, light: 0xfffaed, ambient: 0x948675 }
+    },
+    {
+      id: 3,
+      name: "Era Radio",
+      year: 1965,
+      unlockCost: 90000000,
+      unlockRep: 45,
+      reqResearch: "res_radio",
+      desc: "Siaran gelombang nirkabel AM/FM & jingle iklan komersial.",
+      theme: { bg: 0x82b2d6, fog: 0x97bfde, light: 0xfffae8, ambient: 0x6e88a3 }
+    },
+    {
+      id: 4,
+      name: "Era TV",
+      year: 1980,
+      unlockCost: 280000000,
+      unlockRep: 60,
+      reqResearch: "res_tv",
+      desc: "Channel televisi nasional berwarna & rating prime-time.",
+      theme: { bg: 0x648299, fog: 0x7692a8, light: 0xffffff, ambient: 0x5a6d7d }
+    },
+    {
+      id: 5,
+      name: "Era Online",
+      year: 2005,
+      unlockCost: 800000000,
+      unlockRep: 75,
+      reqResearch: "res_online",
+      desc: "Portal video web & kreator online berbasis views global.",
+      theme: { bg: 0x1e293b, fog: 0x0f172a, light: 0xf1f5f9, ambient: 0x334155 }
+    },
+    {
+      id: 6,
+      name: "Era Sosial Media",
+      year: 2015,
+      unlockCost: 2000000000,
+      unlockRep: 85,
+      reqResearch: "res_social",
+      desc: "Jaringan algoritma feed viral & influencer multiplatform.",
+      theme: { bg: 0x0f172a, fog: 0x090d16, light: 0xe0e7ff, ambient: 0x383569 }
+    }
+  ],
+
+  // Template Unit Media
+  MEDIA_TYPES: {
+    newspaper: {
+      typeId: 'newspaper',
+      eraId: 1,
+      name: "Percetakan Koran Harian",
+      cost: 9500000,
+      baseOpCost: 1200000,
+      baseAudience: 10000,
+      baseRevPerAud: 220, // Rp per audience per bulan
+      color: 0xbf4d3b,
+      desc: "Menghasilkan pendapatan stabil dari penjualan eceran dan iklan cetak.",
+    },
+    magazine: {
+      typeId: 'magazine',
+      eraId: 2,
+      name: "Penerbit Majalah Gaya Hidup",
+      cost: 28000000,
+      baseOpCost: 3200000,
+      baseAudience: 26000,
+      baseRevPerAud: 270,
+      color: 0xf43f5e,
+      desc: "Segmen pembaca loyal dengan tarif sponsor foto iklan produk mewah.",
+    },
+    radio: {
+      typeId: 'radio',
+      eraId: 3,
+      name: "Stasiun Radio Komersial",
+      cost: 70000000,
+      baseOpCost: 7500000,
+      baseAudience: 80000,
+      baseRevPerAud: 230,
+      color: 0x3b82f6,
+      desc: "Biaya produksi efisien dengan daya jangkau jutaan telinga pendengar.",
+    },
+    tv: {
+      typeId: 'tv',
+      eraId: 4,
+      name: "Channel TV Berita & Hiburan",
+      cost: 210000000,
+      baseOpCost: 24000000,
+      baseAudience: 280000,
+      baseRevPerAud: 340,
+      color: 0x0ea5e9,
+      desc: "Biaya produksi studio tinggi tetapi slot iklan prime-time sangat mahal.",
+    },
+    online: {
+      typeId: 'online',
+      eraId: 5,
+      name: "Jaringan Kanal Video Online",
+      cost: 620000000,
+      baseOpCost: 60000000,
+      baseAudience: 950000,
+      baseRevPerAud: 360,
+      color: 0xef4444,
+      desc: "Views viral digital dengan monetisasi iklan display dan sponsor teknologi.",
+    },
+    social: {
+      typeId: 'social',
+      eraId: 6,
+      name: "Konglomerasi Akun Medsos",
+      cost: 1600000000,
+      baseOpCost: 140000000,
+      baseAudience: 3600000,
+      baseRevPerAud: 410,
+      color: 0xa855f7,
+      desc: "Pertumbuhan viral eksponensial. Puncak dominasi kerajaan media modern.",
+    }
+  },
+
+  // Jenis Staf & Efeknya
+  STAFF_TYPES: {
+    wartawan: {
+      name: "Wartawan / Penulis",
+      salary: 1200000,
+      qualityBonus: 0.14,
+      audBonus: 0.04,
+      adBonus: 0,
+      desc: "+Kualitas & Reputasi Berita"
+    },
+    editor: {
+      name: "Editor Senior",
+      salary: 1600000,
+      qualityBonus: 0.09,
+      audBonus: 0.09,
+      adBonus: 0,
+      desc: "+Retensi Pembaca & Minim Hoaks"
+    },
+    kreator: {
+      name: "Kreator / Presenter",
+      salary: 2200000,
+      qualityBonus: 0.06,
+      audBonus: 0.20,
+      adBonus: 0.04,
+      desc: "+Pertumbuhan Audiens Cepat"
+    },
+    sales: {
+      name: "Sales Eksekutif Iklan",
+      salary: 1800000,
+      qualityBonus: -0.02,
+      audBonus: 0,
+      adBonus: 0.24,
+      desc: "+24% Pendapatan Iklan Sponsor"
+    }
+  },
+
+  // 8 Node Riset Teknologi
+  RESEARCH_NODES: [
+    {
+      id: "res_investigasi",
+      name: "Jurnalistik Investigasi",
+      cost: 10000000,
+      eraReq: 1,
+      reqId: null,
+      desc: "+15 Reputasi dan +20% Kualitas konten seluruh unit.",
+      effect: { repBonus: 15, qualityMult: 1.2 }
+    },
+    {
+      id: "res_magazine",
+      name: "Penerbitan Glossy",
+      cost: 22000000,
+      eraReq: 1,
+      reqId: "res_investigasi",
+      desc: "Membuka lisensi untuk memasuki Era Majalah.",
+      effect: { unlocksEra: 2 }
+    },
+    {
+      id: "res_sindikasi",
+      name: "Sindikasi Berita Nasional",
+      cost: 40000000,
+      eraReq: 2,
+      reqId: "res_magazine",
+      desc: "Menghemat biaya operasional seluruh unit sebesar 15%.",
+      effect: { opCostDiscount: 0.85 }
+    },
+    {
+      id: "res_radio",
+      name: "Pemancar Frekuensi AM/FM",
+      cost: 70000000,
+      eraReq: 2,
+      reqId: "res_sindikasi",
+      desc: "Membuka lisensi frekuensi untuk Era Radio.",
+      effect: { unlocksEra: 3 }
+    },
+    {
+      id: "res_tv",
+      name: "Studio Penyiaran TV",
+      cost: 190000000,
+      eraReq: 3,
+      reqId: "res_radio",
+      desc: "Membuka izin siaran televisi nasional untuk Era TV.",
+      effect: { unlocksEra: 4 }
+    },
+    {
+      id: "res_satelit",
+      name: "Satelit Komunikasi Relay",
+      cost: 420000000,
+      eraReq: 4,
+      reqId: "res_tv",
+      desc: "+35% Efek sinergi lintas media & +25% jangkauan audiens.",
+      effect: { synergyMult: 1.35, audMult: 1.25 }
+    },
+    {
+      id: "res_online",
+      name: "Jaringan Broadband Digital",
+      cost: 650000000,
+      eraReq: 4,
+      reqId: "res_satelit",
+      desc: "Membuka infrastruktur cloud untuk Era Video Online.",
+      effect: { unlocksEra: 5 }
+    },
+    {
+      id: "res_social",
+      name: "Algoritma Viral & Big Data",
+      cost: 1500000000,
+      eraReq: 5,
+      reqId: "res_online",
+      desc: "Membuka Era Sosial Media untuk perebutan tahta raja media!",
+      effect: { unlocksEra: 6 }
+    }
+  ]
+};
+
+// ==========================================
+// 2. STATE
+// ==========================================
+let gameState = {
+  cash: CONFIG.STARTING_CASH,
+  reputation: CONFIG.STARTING_REPUTATION,
+  totalAudience: 0,
+  monthlyNetProfit: 0,
+  
+  day: 1,
+  month: 1,
+  year: 1920,
+  eraId: 1,
+  speed: 1, // 0: pause, 1, 2, 5
+  
+  units: [], // Array of unit objects on grid
+  completedResearch: [],
+  
+  // Trackers
+  consecutiveNegativeCashMonths: 0,
+  consecutiveWinMonths: 0,
+  gameEnded: false,
+  nextEventInDays: 35,
+  
+  // AI Competitors
+  competitors: [
+    { id: "comp_1", name: "Nusantara Post Group", audience: 50000, color: "#f97316" },
+    { id: "comp_2", name: "Global Surya Broadcast", audience: 30000, color: "#eab308" },
+    { id: "comp_3", name: "ByteViral Network", audience: 5000, color: "#06b6d4" }
+  ],
+  
+  // Last monthly report data
+  lastReport: {
+    grossRevenue: 0,
+    staffSalaries: 0,
+    opCosts: 0,
+    netProfit: 0,
+    audChange: 0
+  }
+};
+
+// Helper Format Uang
+function formatRupiah(num) {
+  if (Math.abs(num) >= 1000000000) {
+    return "Rp " + (num / 1000000000).toFixed(2) + " M";
+  }
+  if (Math.abs(num) >= 1000000) {
+    return "Rp " + (num / 1000000).toFixed(1) + " Jt";
+  }
+  return "Rp " + Math.round(num).toLocaleString('id-ID');
+}
+
+function formatNumber(num) {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(2) + " Juta";
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + " Ribu";
+  }
+  return Math.round(num).toLocaleString('id-ID');
+}
+
+// LocalStorage Auto-save
+function saveGame() {
+  try {
+    const serialized = JSON.stringify({
+      cash: gameState.cash,
+      reputation: gameState.reputation,
+      day: gameState.day,
+      month: gameState.month,
+      year: gameState.year,
+      eraId: gameState.eraId,
+      completedResearch: gameState.completedResearch,
+      consecutiveNegativeCashMonths: gameState.consecutiveNegativeCashMonths,
+      consecutiveWinMonths: gameState.consecutiveWinMonths,
+      competitors: gameState.competitors,
+      units: gameState.units.map(u => ({
+        id: u.id,
+        gridX: u.gridX,
+        gridZ: u.gridZ,
+        typeId: u.typeId,
+        name: u.name,
+        level: u.level,
+        audience: u.audience,
+        qualityAlloc: u.qualityAlloc,
+        quantityAlloc: u.quantityAlloc,
+        adAlloc: u.adAlloc,
+        staff: u.staff
+      }))
+    });
+    localStorage.setItem('media_mogul_saved_state', serialized);
+  } catch(e) {
+    console.warn("Gagal simpan ke localStorage", e);
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem('media_mogul_saved_state');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    
+    gameState.cash = data.cash ?? CONFIG.STARTING_CASH;
+    gameState.reputation = data.reputation ?? CONFIG.STARTING_REPUTATION;
+    gameState.day = data.day ?? 1;
+    gameState.month = data.month ?? 1;
+    gameState.year = data.year ?? 1920;
+    gameState.eraId = data.eraId ?? 1;
+    gameState.completedResearch = data.completedResearch ?? [];
+    gameState.consecutiveNegativeCashMonths = data.consecutiveNegativeCashMonths ?? 0;
+    gameState.consecutiveWinMonths = data.consecutiveWinMonths ?? 0;
+    if (data.competitors) gameState.competitors = data.competitors;
+    
+    // Clear old unit meshes
+    gameState.units.forEach(u => {
+      if (u.mesh) scene.remove(u.mesh);
+    });
+    gameState.units = [];
+
+    // Rebuild units
+    if (Array.isArray(data.units)) {
+      data.units.forEach(uData => {
+        const u = {
+          id: uData.id,
+          gridX: uData.gridX,
+          gridZ: uData.gridZ,
+          typeId: uData.typeId,
+          name: uData.name,
+          level: uData.level || 1,
+          audience: uData.audience || 10000,
+          qualityAlloc: uData.qualityAlloc || 40,
+          quantityAlloc: uData.quantityAlloc || 30,
+          adAlloc: uData.adAlloc || 30,
+          staff: uData.staff || { wartawan: 1, editor: 0, kreator: 0, sales: 1 },
+          mesh: null
+        };
+        u.mesh = createBuildingMesh(u);
+        scene.add(u.mesh);
+        gameState.units.push(u);
+      });
+    }
+    return true;
+  } catch(e) {
+    console.warn("Gagal membaca localStorage", e);
+    return false;
+  }
+}
+
+function resetGame() {
+  if (!confirm("Apakah Anda yakin ingin mengatur ulang kerajaan media Anda dari awal?")) return;
+  try {
+    localStorage.removeItem('media_mogul_saved_state');
+  } catch(e) {}
+  location.reload();
+}
+
+// ==========================================
+// 3. THREE SETUP
+// ==========================================
+let scene, camera, renderer, raycaster, mouse;
+let gridPlots = []; // 6x6 interactive tile meshes
+let cameraTarget = new THREE.Vector3(0, 0, 0);
+let cameraZoom = CONFIG.CAMERA.INITIAL_ZOOM;
+let isDraggingCamera = false;
+let previousPointerPos = { x: 0, y: 0 };
+let pointerDownPos = { x: 0, y: 0 };
+let hoveredPlot = null;
+let hoveredUnit = null;
+
+// Lighting & Atmosphere
+let ambientLight, dirLight, hemisphereLight;
+let currentAtmosphereColor = new THREE.Color();
+let targetAtmosphereColor = new THREE.Color();
+
+function initThree() {
+  if (typeof THREE === 'undefined') {
+    document.getElementById('game-container').innerHTML = `
+      <div style="padding:40px; text-align:center; color:#ef4444; font-family:sans-serif;">
+        <h2>Gagal Memuat Three.js r128</h2>
+        <p>CDN Three.js r128 tidak dapat diakses. Mohon periksa koneksi internet Anda.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const container = document.getElementById('canvas-container');
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  // Scene & Fog
+  scene = new THREE.Scene();
+  const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
+  scene.background = new THREE.Color(currentEra.theme.bg);
+  scene.fog = new THREE.Fog(currentEra.theme.fog, 18, 75);
+
+  // Isometric Tilted Perspective Camera
+  camera = new THREE.PerspectiveCamera(40, width / height, 0.5, 200);
+  updateCameraPosition();
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  // Raycaster & Mouse
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  // Pencahayaan
+  ambientLight = new THREE.AmbientLight(currentEra.theme.ambient, 1.4);
+  scene.add(ambientLight);
+
+  dirLight = new THREE.DirectionalLight(currentEra.theme.light, 1.5);
+  dirLight.position.set(30, 45, 20);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 1024;
+  dirLight.shadow.mapSize.height = 1024;
+  dirLight.shadow.camera.near = 10;
+  dirLight.shadow.camera.far = 100;
+  dirLight.shadow.camera.left = -22;
+  dirLight.shadow.camera.right = 22;
+  dirLight.shadow.camera.top = 22;
+  dirLight.shadow.camera.bottom = -22;
+  scene.add(dirLight);
+
+  // Bangun Diorama Dasar & Grid Kavling
+  buildCityDiorama();
+
+  // Event Listeners Navigasi
+  setupInputHandlers();
+
+  // Window Resize
+  window.addEventListener('resize', onWindowResize);
+}
+
+function updateCameraPosition() {
+  // Posisi kamera isometrik ~45°
+  const angle = Math.PI / 4; // 45 derajat
+  const camX = cameraTarget.x + cameraZoom * Math.cos(angle);
+  const camY = cameraTarget.y + cameraZoom * 0.95;
+  const camZ = cameraTarget.z + cameraZoom * Math.sin(angle);
+  camera.position.set(camX, camY, camZ);
+  camera.lookAt(cameraTarget);
+}
+
+function onWindowResize() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+
+// Konstruksi Diorama Kota Low-Poly
+function buildCityDiorama() {
+  const { SIZE, CELL_SIZE, SPACING } = CONFIG.GRID;
+  const totalSpan = SIZE * CELL_SIZE + (SIZE - 1) * SPACING;
+  const dioramaWidth = totalSpan + 6.0;
+
+  // 1. Dasar Pulau Diorama (Bawah)
+  const baseGeo = new THREE.BoxGeometry(dioramaWidth, 1.8, dioramaWidth);
+  const baseMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+  const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+  baseMesh.position.y = -0.95;
+  baseMesh.receiveShadow = true;
+  scene.add(baseMesh);
+
+  // 2. Lapisan Rumput / Paving Permukaan
+  const grassGeo = new THREE.BoxGeometry(dioramaWidth + 0.3, 0.4, dioramaWidth + 0.3);
+  const grassMat = new THREE.MeshLambertMaterial({ color: 0x2d5a3f });
+  const grassMesh = new THREE.Mesh(grassGeo, grassMat);
+  grassMesh.position.y = -0.18;
+  grassMesh.receiveShadow = true;
+  scene.add(grassMesh);
+
+  // 3. Grid Kavling Tanah & Jalan
+  const halfSpan = totalSpan / 2 - (CELL_SIZE / 2);
+
+  for (let gx = 0; gx < SIZE; gx++) {
+    for (let gz = 0; gz < SIZE; gz++) {
+      const posX = (gx * (CELL_SIZE + SPACING)) - halfSpan;
+      const posZ = (gz * (CELL_SIZE + SPACING)) - halfSpan;
+
+      // Slab Kavling
+      const plotGeo = new THREE.BoxGeometry(CELL_SIZE, 0.15, CELL_SIZE);
+      const plotMat = new THREE.MeshLambertMaterial({
+        color: 0x3f4d43,
+        transparent: true,
+        opacity: 0.95
+      });
+      const plotMesh = new THREE.Mesh(plotGeo, plotMat);
+      plotMesh.position.set(posX, 0.08, posZ);
+      plotMesh.receiveShadow = true;
+      plotMesh.userData = { isPlot: true, gridX: gx, gridZ: gz };
+
+      // Border halus kavling
+      const borderGeo = new THREE.BoxGeometry(CELL_SIZE + 0.08, 0.05, CELL_SIZE + 0.08);
+      const borderMat = new THREE.MeshBasicMaterial({ color: 0x1f2922 });
+      const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+      borderMesh.position.set(posX, 0.02, posZ);
+      scene.add(borderMesh);
+
+      scene.add(plotMesh);
+      gridPlots.push(plotMesh);
+    }
+  }
+
+  // 4. Dekorasi Pinggiran (Pohon Miniatur Low-Poly)
+  addLowPolyTrees(dioramaWidth);
+}
+
+function addLowPolyTrees(dWidth) {
+  const treeTrunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 0.8, 5);
+  const treeFoliageGeo = new THREE.ConeGeometry(0.65, 1.4, 5);
+  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c4033 });
+  const foliageMat = new THREE.MeshLambertMaterial({ color: 0x1e6f42 });
+
+  const half = dWidth / 2 - 1.2;
+  const positions = [
+    [-half, -half], [half, -half], [-half, half], [half, half],
+    [-half, 0], [half, 0], [0, -half], [0, half]
+  ];
+
+  positions.forEach(([x, z]) => {
+    const treeGroup = new THREE.Group();
+    const trunk = new THREE.Mesh(treeTrunkGeo, trunkMat);
+    trunk.position.y = 0.4;
+    trunk.castShadow = true;
+
+    const foliage = new THREE.Mesh(treeFoliageGeo, foliageMat);
+    foliage.position.y = 1.3;
+    foliage.castShadow = true;
+
+    treeGroup.add(trunk);
+    treeGroup.add(foliage);
+    treeGroup.position.set(x, 0, z);
+    scene.add(treeGroup);
+  });
+}
+
+// Input Handlers: Pan Drag, Scroll Zoom, Raycasting Selection
+function setupInputHandlers() {
+  const container = document.getElementById('canvas-container');
+
+  container.addEventListener('pointerdown', (e) => {
+    isDraggingCamera = true;
+    previousPointerPos = { x: e.clientX, y: e.clientY };
+    pointerDownPos = { x: e.clientX, y: e.clientY };
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (isDraggingCamera) {
+      const dx = e.clientX - previousPointerPos.x;
+      const dy = e.clientY - previousPointerPos.y;
+      previousPointerPos = { x: e.clientX, y: e.clientY };
+
+      // Geser kamera searah pandangan 45°
+      const panFactor = CONFIG.CAMERA.PAN_SPEED * (cameraZoom / 30);
+      const angle = Math.PI / 4;
+      const moveX = (-dx * Math.sin(angle) - dy * Math.cos(angle)) * panFactor;
+      const moveZ = (dx * Math.cos(angle) - dy * Math.sin(angle)) * panFactor;
+
+      cameraTarget.x = Math.max(-25, Math.min(25, cameraTarget.x + moveX));
+      cameraTarget.z = Math.max(-25, Math.min(25, cameraTarget.z + moveZ));
+      updateCameraPosition();
+    } else {
+      // Hover Raycasting
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      checkHover();
+    }
+  });
+
+  window.addEventListener('pointerup', (e) => {
+    if (!isDraggingCamera) return;
+    isDraggingCamera = false;
+
+    // Cek apakah aksi berupa klik biasa atau drag panjang
+    const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+    if (dist < 6) {
+      handleSceneClick(e);
+    }
+  });
+
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomDelta = e.deltaY * 0.04;
+    cameraZoom = Math.max(CONFIG.CAMERA.MIN_ZOOM, Math.min(CONFIG.CAMERA.MAX_ZOOM, cameraZoom + zoomDelta));
+    updateCameraPosition();
+  }, { passive: false });
+}
+
+function checkHover() {
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(gridPlots);
+
+  if (intersects.length > 0) {
+    const plot = intersects[0].object;
+    if (hoveredPlot !== plot) {
+      if (hoveredPlot) resetPlotColor(hoveredPlot);
+      hoveredPlot = plot;
+      const unit = getUnitAtGrid(plot.userData.gridX, plot.userData.gridZ);
+      plot.material.color.setHex(unit ? 0x60a5fa : 0x3b82f6);
+      document.body.style.cursor = 'pointer';
+    }
+  } else {
+    if (hoveredPlot) {
+      resetPlotColor(hoveredPlot);
+      hoveredPlot = null;
+      document.body.style.cursor = 'default';
+    }
+  }
+}
+
+function resetPlotColor(plot) {
+  const unit = getUnitAtGrid(plot.userData.gridX, plot.userData.gridZ);
+  plot.material.color.setHex(unit ? 0x2e3831 : 0x3f4d43);
+}
+
+function handleSceneClick(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObjects(gridPlots);
+  if (intersects.length > 0) {
+    const plot = intersects[0].object;
+    const { gridX, gridZ } = plot.userData;
+    const existingUnit = getUnitAtGrid(gridX, gridZ);
+
+    if (existingUnit) {
+      openUnitModal(existingUnit);
+    } else {
+      openBuildModal(gridX, gridZ);
+    }
+  }
+}
+
+function getUnitAtGrid(gx, gz) {
+  return gameState.units.find(u => u.gridX === gx && u.gridZ === gz);
+}
+
+function getGridWorldPosition(gx, gz) {
+  const { SIZE, CELL_SIZE, SPACING } = CONFIG.GRID;
+  const totalSpan = SIZE * CELL_SIZE + (SIZE - 1) * SPACING;
+  const halfSpan = totalSpan / 2 - (CELL_SIZE / 2);
+  const posX = (gx * (CELL_SIZE + SPACING)) - halfSpan;
+  const posZ = (gz * (CELL_SIZE + SPACING)) - halfSpan;
+  return new THREE.Vector3(posX, 0.15, posZ);
+}
+
+// ==========================================
+// 4. BUILDINGS (3D PROCEDURAL PRIMITIVES)
+// ==========================================
+function createBuildingMesh(unit) {
+  const group = new THREE.Group();
+  const template = CONFIG.MEDIA_TYPES[unit.typeId];
+  const pos = getGridWorldPosition(unit.gridX, unit.gridZ);
+  group.position.copy(pos);
+
+  const baseScaleY = 1.0 + (unit.level - 1) * 0.22;
+
+  switch (unit.typeId) {
+    case 'newspaper': {
+      // 1. Gedung Percetakan Koran: Bata merah, cerobong asap beranimasi
+      const bodyGeo = new THREE.BoxGeometry(2.3, 1.6, 2.3);
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xa84334 });
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bodyMesh.position.y = 0.8;
+      bodyMesh.castShadow = true;
+      group.add(bodyMesh);
+
+      // Atap Pabrik
+      const roofGeo = new THREE.BoxGeometry(2.4, 0.35, 2.4);
+      const roofMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+      const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+      roofMesh.position.y = 1.7;
+      group.add(roofMesh);
+
+      // Cerobong Asap
+      const chimneyGeo = new THREE.CylinderGeometry(0.2, 0.26, 2.0, 7);
+      const chimneyMat = new THREE.MeshLambertMaterial({ color: 0x782f25 });
+      const chimneyMesh = new THREE.Mesh(chimneyGeo, chimneyMat);
+      chimneyMesh.position.set(0.65, 1.8, 0.65);
+      chimneyMesh.castShadow = true;
+      group.add(chimneyMesh);
+
+      // Partikel Asap Miniatur (Animasi loop)
+      const smokeGroup = new THREE.Group();
+      smokeGroup.position.set(0.65, 2.8, 0.65);
+      const smokePuffs = [];
+      for (let i = 0; i < 3; i++) {
+        const puffGeo = new THREE.SphereGeometry(0.18 + i * 0.05, 5, 5);
+        const puffMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.65 });
+        const puff = new THREE.Mesh(puffGeo, puffMat);
+        puff.position.y = i * 0.4;
+        smokeGroup.add(puff);
+        smokePuffs.push(puff);
+      }
+      group.add(smokeGroup);
+      group.userData.smokePuffs = smokePuffs;
+      break;
+    }
+
+    case 'magazine': {
+      // 2. Kantor Majalah: Gedung modis, jendela kaca, papan billboard
+      const bodyGeo = new THREE.BoxGeometry(2.1, 2.2, 2.1);
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      bodyMesh.position.y = 1.1;
+      bodyMesh.castShadow = true;
+      group.add(bodyMesh);
+
+      // Aksen Kaca
+      const glassGeo = new THREE.BoxGeometry(1.6, 1.4, 2.15);
+      const glassMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
+      const glassMesh = new THREE.Mesh(glassGeo, glassMat);
+      glassMesh.position.y = 1.2;
+      group.add(glassMesh);
+
+      // Papan Billboard Majalah di Atap
+      const signBoardGeo = new THREE.BoxGeometry(1.4, 0.7, 0.15);
+      const signBoardMat = new THREE.MeshLambertMaterial({ color: 0xf43f5e });
+      const signMesh = new THREE.Mesh(signBoardGeo, signBoardMat);
+      signMesh.position.set(0, 2.65, 0);
+      group.add(signMesh);
+      break;
+    }
+
+    case 'radio': {
+      // 3. Stasiun Radio: Bunker siaran, menara antena transmisi tinggi berkedip
+      const baseGeo = new THREE.BoxGeometry(2.1, 1.0, 2.1);
+      const baseMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+      const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+      baseMesh.position.y = 0.5;
+      baseMesh.castShadow = true;
+      group.add(baseMesh);
+
+      // Tiang Antena Besi
+      const mastGeo = new THREE.CylinderGeometry(0.08, 0.35, 4.2, 5);
+      const mastMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
+      const mastMesh = new THREE.Mesh(mastGeo, mastMat);
+      mastMesh.position.y = 2.8;
+      mastMesh.castShadow = true;
+      group.add(mastMesh);
+
+      // Lampu Suar Merah Berkedip di Puncak
+      const beaconGeo = new THREE.SphereGeometry(0.18, 6, 6);
+      const beaconMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
+      beaconMesh.position.y = 4.95;
+      group.add(beaconMesh);
+      group.userData.beacon = beaconMesh;
+      break;
+    }
+
+    case 'tv': {
+      // 4. Channel TV: Studio penyiaran modern, antena parabola berputar
+      const studioGeo = new THREE.BoxGeometry(2.5, 1.7, 2.2);
+      const studioMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+      const studioMesh = new THREE.Mesh(studioGeo, studioMat);
+      studioMesh.position.y = 0.85;
+      studioMesh.castShadow = true;
+      group.add(studioMesh);
+
+      // Kubah Studio TV
+      const domeGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.4, 8);
+      const domeMat = new THREE.MeshLambertMaterial({ color: 0x0284c7 });
+      const domeMesh = new THREE.Mesh(domeGeo, domeMat);
+      domeMesh.position.y = 1.9;
+      group.add(domeMesh);
+
+      // Antena Parabola di Atap (Berotasi halus)
+      const dishMount = new THREE.Group();
+      dishMount.position.set(0.6, 2.1, 0.5);
+
+      const dishArmGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 4);
+      const dishArm = new THREE.Mesh(dishArmGeo, new THREE.MeshLambertMaterial({ color: 0x64748b }));
+      dishArm.position.y = 0.3;
+      dishMount.add(dishArm);
+
+      const dishGeo = new THREE.ConeGeometry(0.55, 0.3, 8);
+      const dishMesh = new THREE.Mesh(dishGeo, new THREE.MeshLambertMaterial({ color: 0xf8fafc }));
+      dishMesh.position.y = 0.6;
+      dishMesh.rotation.x = Math.PI / 3;
+      dishMount.add(dishMesh);
+
+      group.add(dishMount);
+      group.userData.dish = dishMount;
+      break;
+    }
+
+    case 'online': {
+      // 5. Kanal Video Online: Studio kreator neon, ring-light raksasa
+      const loftGeo = new THREE.BoxGeometry(2.3, 2.0, 2.3);
+      const loftMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+      const loftMesh = new THREE.Mesh(loftGeo, loftMat);
+      loftMesh.position.y = 1.0;
+      loftMesh.castShadow = true;
+      group.add(loftMesh);
+
+      // Logo Tombol Play Merah di Facade
+      const playLogoGeo = new THREE.ConeGeometry(0.35, 0.5, 3);
+      const playLogoMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
+      const playMesh = new THREE.Mesh(playLogoGeo, playLogoMat);
+      playMesh.position.set(0, 1.2, 1.2);
+      playMesh.rotation.z = -Math.PI / 2;
+      group.add(playMesh);
+
+      // Ring Light Raksasa di Atap
+      const ringGeo = new THREE.TorusGeometry(0.65, 0.1, 6, 12);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.position.set(0, 2.8, 0);
+      ringMesh.rotation.x = Math.PI / 4;
+      group.add(ringMesh);
+      group.userData.ringLight = ringMesh;
+      break;
+    }
+
+    case 'social': {
+      // 6. Konglomerasi Medsos: Pencakar langit futuristik dengan aksen neon
+      const towerGeo = new THREE.BoxGeometry(2.0, 3.6, 2.0);
+      const towerMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
+      const towerMesh = new THREE.Mesh(towerGeo, towerMat);
+      towerMesh.position.y = 1.8;
+      towerMesh.castShadow = true;
+      group.add(towerMesh);
+
+      // Garis Neon Glow Vertikal
+      const neonGeo = new THREE.BoxGeometry(0.12, 3.65, 2.05);
+      const neonMat = new THREE.MeshBasicMaterial({ color: 0xd946ef });
+      const neonMesh = new THREE.Mesh(neonGeo, neonMat);
+      neonMesh.position.y = 1.8;
+      group.add(neonMesh);
+
+      // Jarum Spire & Kristal Data Melayang
+      const spireGeo = new THREE.CylinderGeometry(0.04, 0.15, 1.4, 5);
+      const spireMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
+      const spireMesh = new THREE.Mesh(spireGeo, spireMat);
+      spireMesh.position.y = 4.3;
+      group.add(spireMesh);
+
+      const gemGeo = new THREE.OctahedronGeometry(0.28);
+      const gemMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+      const gemMesh = new THREE.Mesh(gemGeo, gemMat);
+      gemMesh.position.y = 5.2;
+      group.add(gemMesh);
+      group.userData.gem = gemMesh;
+      break;
+    }
+  }
+
+  // Skala ketinggian berdasarkan level unit
+  group.scale.y = baseScaleY;
+
+  return group;
+}
+
+// Update Micro-animasi bangunan tiap frame
+function updateBuildingAnimations(clockTime) {
+  gameState.units.forEach(unit => {
+    if (!unit.mesh) return;
+
+    // 1. Asap cerobong koran
+    if (unit.mesh.userData.smokePuffs) {
+      unit.mesh.userData.smokePuffs.forEach((puff, idx) => {
+        puff.position.y = ((clockTime * 0.8 + idx * 0.4) % 1.2);
+        puff.scale.setScalar(0.7 + puff.position.y * 0.8);
+        puff.material.opacity = Math.max(0, 0.8 - puff.position.y * 0.6);
+      });
+    }
+
+    // 2. Beacon radio berkedip
+    if (unit.mesh.userData.beacon) {
+      const blink = Math.sin(clockTime * 7) > 0 ? 1 : 0.2;
+      unit.mesh.userData.beacon.material.opacity = blink;
+    }
+
+    // 3. Parabola TV berotasi perlahan
+    if (unit.mesh.userData.dish) {
+      unit.mesh.userData.dish.rotation.y = clockTime * 0.4;
+    }
+
+    // 4. Ring light kreator berdenyut
+    if (unit.mesh.userData.ringLight) {
+      unit.mesh.userData.ringLight.rotation.z = clockTime * 0.6;
+    }
+
+    // 5. Permata medsos melayang dan berputar
+    if (unit.mesh.userData.gem) {
+      unit.mesh.userData.gem.rotation.y = clockTime * 1.5;
+      unit.mesh.userData.gem.position.y = 5.2 + Math.sin(clockTime * 3) * 0.15;
+    }
+  });
+}
+
+// Transisi Atmosfer Halus per Era
+function updateEraAtmosphere() {
+  const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
+  if (!currentEra) return;
+
+  targetAtmosphereColor.setHex(currentEra.theme.bg);
+  scene.background.lerp(targetAtmosphereColor, 0.05);
+  scene.fog.color.lerp(new THREE.Color(currentEra.theme.fog), 0.05);
+  ambientLight.color.lerp(new THREE.Color(currentEra.theme.ambient), 0.05);
+  dirLight.color.lerp(new THREE.Color(currentEra.theme.light), 0.05);
+}
+
+// ==========================================
+// 5. GAME LOGIC
+// ==========================================
+let dayTimer = 0;
+
+function tickGame(deltaSeconds) {
+  if (gameState.speed === 0 || gameState.gameEnded) return;
+
+  dayTimer += deltaSeconds * gameState.speed;
+  const secondsPerDay = 1.0; // 1s = 1 hari pada 1x
+
+  if (dayTimer >= secondsPerDay) {
+    dayTimer -= secondsPerDay;
+    advanceDay();
+  }
+}
+
+function advanceDay() {
+  gameState.day++;
+
+  // Cek Event Acak
+  gameState.nextEventInDays--;
+  if (gameState.nextEventInDays <= 0) {
+    gameState.nextEventInDays = Math.floor(35 + Math.random() * 30); // Tiap 1-2 bulan
+    triggerRandomEvent();
+  }
+
+  // Pergantian Bulan (Tiap 30 Hari)
+  if (gameState.day > CONFIG.DAYS_PER_MONTH) {
+    gameState.day = 1;
+    advanceMonth();
+  }
+
+  updateHUD();
+}
+
+function advanceMonth() {
+  gameState.month++;
+  if (gameState.month > 12) {
+    gameState.month = 1;
+    gameState.year++;
+  }
+
+  // Hitung Finansial & Dinamika Audiens Seluruh Unit
+  processMonthlyEconomy();
+
+  // Update Pertumbuhan Pesaing AI
+  updateCompetitors();
+
+  // Evaluasi Kondisi Menang / Kalah
+  evaluateWinLoss();
+
+  // Auto-Save
+  saveGame();
+}
+
+function processMonthlyEconomy() {
+  let grossRevenue = 0;
+  let totalSalaries = 0;
+  let totalOpCosts = 0;
+  let totalAudience = 0;
+
+  // Cek Bonus Sinergi Lintas Media
+  const distinctTypes = new Set(gameState.units.map(u => u.typeId)).size;
+  let synergyMult = 1.0;
+  if (distinctTypes >= 2) synergyMult = 1.10;
+  if (distinctTypes >= 3) synergyMult = 1.20;
+  if (distinctTypes >= 4) synergyMult = 1.35;
+  if (distinctTypes >= 5) synergyMult = 1.50;
+
+  // Riset Sinergi Satelit
+  if (gameState.completedResearch.includes('res_satelit')) {
+    synergyMult *= 1.35;
+  }
+
+  // Riset Efisiensi Biaya Sindikasi
+  const opCostMult = gameState.completedResearch.includes('res_sindikasi') ? 0.85 : 1.0;
+
+  gameState.units.forEach(unit => {
+    const template = CONFIG.MEDIA_TYPES[unit.typeId];
+    
+    // 1. Hitung Pengaruh Staf
+    let qualityStaff = 1.0;
+    let audStaff = 1.0;
+    let adStaff = 1.0;
+    let staffSalaries = 0;
+
+    for (const [stKey, count] of Object.entries(unit.staff)) {
+      const sDef = CONFIG.STAFF_TYPES[stKey];
+      if (sDef && count > 0) {
+        staffSalaries += sDef.salary * count;
+        qualityStaff += sDef.qualityBonus * count;
+        audStaff += sDef.audBonus * count;
+        adStaff += sDef.adBonus * count;
+      }
+    }
+    totalSalaries += staffSalaries;
+
+    // 2. Hitung Pengaruh Slider Alokasi
+    const qRatio = unit.qualityAlloc / 100;
+    const kRatio = unit.quantityAlloc / 100;
+    const adRatio = unit.adAlloc / 100;
+
+    // Pertumbuhan audiens per bulan
+    const baseGrowth = (kRatio * 0.25) + (qRatio * 0.15);
+    let adFatiguePenalty = 0;
+    if (adRatio > 0.45) {
+      adFatiguePenalty = (adRatio - 0.45) * 0.4; // Penalti kejenuhan iklan
+    }
+
+    const netGrowthFactor = (1.0 + baseGrowth - adFatiguePenalty) * audStaff * synergyMult;
+    unit.audience = Math.round(Math.max(500, unit.audience * netGrowthFactor));
+    totalAudience += unit.audience;
+
+    // 3. Pendapatan (Iklan + Penjualan)
+    const revPerUser = template.baseRevPerAud * (0.8 + (unit.level - 1) * 0.25);
+    const unitGrossRevenue = Math.round(unit.audience * revPerUser * (0.5 + adRatio) * adStaff);
+    grossRevenue += unitGrossRevenue;
+
+    // 4. Biaya Operasional
+    const unitOpCost = Math.round(template.baseOpCost * (1.0 + (unit.level - 1) * 0.35) * opCostMult);
+    totalOpCosts += unitOpCost;
+
+    // Munculkan teks melayang "+Rp..." jika unit menghasilkan uang
+    const profitUnit = unitGrossRevenue - unitOpCost - staffSalaries;
+    if (profitUnit > 0) {
+      const worldPos = getGridWorldPosition(unit.gridX, unit.gridZ);
+      showFloatingMoney("+" + formatRupiah(profitUnit), worldPos);
+    }
+  });
+
+  const netProfit = grossRevenue - totalSalaries - totalOpCosts;
+  gameState.cash += netProfit;
+  gameState.monthlyNetProfit = netProfit;
+  gameState.totalAudience = totalAudience;
+
+  // Catat Laporan
+  gameState.lastReport = {
+    grossRevenue,
+    staffSalaries,
+    opCosts: totalOpCosts,
+    netProfit,
+    totalAudience
+  };
+
+  // Toast Notifikasi Finansial Singkat
+  if (netProfit >= 0) {
+    showToast(`Bulan ${gameState.month}: Laba Bersih ${formatRupiah(netProfit)}!`, 'success');
+  } else {
+    showToast(`Bulan ${gameState.month}: Defisit ${formatRupiah(netProfit)}!`, 'danger');
+  }
+}
+
+// Simulasi Audiens Pesaing AI
+function updateCompetitors() {
+  const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
+
+  gameState.competitors.forEach(comp => {
+    let growthRate = 0.02 + Math.random() * 0.03;
+
+    // Karakteristik Pesaing
+    if (comp.id === "comp_1") {
+      // Nusantara Post: Kuat di era 1-3, melambat di era 5-6
+      growthRate = gameState.eraId <= 3 ? 0.05 : 0.015;
+    } else if (comp.id === "comp_2") {
+      // Global Surya: Meledak di TV & Radio
+      growthRate = (gameState.eraId === 3 || gameState.eraId === 4) ? 0.06 : 0.025;
+    } else if (comp.id === "comp_3") {
+      // ByteViral: Lambat di awal, meroket di era 5-6
+      growthRate = gameState.eraId >= 5 ? 0.08 : 0.01;
+    }
+
+    comp.audience = Math.round(comp.audience * (1 + growthRate));
+  });
+}
+
+function evaluateWinLoss() {
+  // Cek Kondisi Kalah 1: Kas minus 2 bulan berturut-turut
+  if (gameState.cash < 0) {
+    gameState.consecutiveNegativeCashMonths++;
+    if (gameState.consecutiveNegativeCashMonths >= 2) {
+      triggerGameOver("Kebangkrutan Keuangan!", "Kas perusahaan Anda berada di bawah nol selama 2 bulan berturut-turut.");
+      return;
+    }
+  } else {
+    gameState.consecutiveNegativeCashMonths = 0;
+  }
+
+  // Cek Kondisi Kalah 2: Reputasi hancur 0
+  if (gameState.reputation <= 0) {
+    triggerGameOver("Krisis Moral & Boikot Massal!", "Reputasi pers Anda telah menyentuh angka 0. Publik menolak membaca media Anda.");
+    return;
+  }
+
+  // Cek Kondisi Menang: Era Sosial Media + Posisi #1 Market Share selama 12 bulan
+  const rank = getPlayerMarketRank();
+  if (gameState.eraId === 6 && rank === 1) {
+    gameState.consecutiveWinMonths++;
+    if (gameState.consecutiveWinMonths >= 12) {
+      triggerVictory();
+      return;
+    }
+  } else {
+    gameState.consecutiveWinMonths = 0;
+  }
+}
+
+function getPlayerMarketRank() {
+  const all = [
+    { isPlayer: true, audience: gameState.totalAudience },
+    ...gameState.competitors.map(c => ({ isPlayer: false, audience: c.audience }))
+  ];
+  all.sort((a, b) => b.audience - a.audience);
+  return all.findIndex(item => item.isPlayer) + 1;
+}
+
+// Beli / Bangun Unit Baru
+function buildUnit(typeId, gridX, gridZ) {
+  const template = CONFIG.MEDIA_TYPES[typeId];
+  if (!template) return;
+
+  if (gameState.cash < template.cost) {
+    showToast("Uang tidak mencukupi untuk membangun unit ini!", "warn");
+    return;
+  }
+
+  gameState.cash -= template.cost;
+  
+  const unit = {
+    id: "unit_" + Date.now(),
+    gridX,
+    gridZ,
+    typeId,
+    name: `${template.name} #${gameState.units.filter(u => u.typeId === typeId).length + 1}`,
+    level: 1,
+    audience: template.baseAudience,
+    qualityAlloc: 40,
+    quantityAlloc: 30,
+    adAlloc: 30,
+    staff: { wartawan: 1, editor: 0, kreator: 0, sales: 1 },
+    mesh: null
+  };
+
+  unit.mesh = createBuildingMesh(unit);
+  scene.add(unit.mesh);
+  gameState.units.push(unit);
+
+  closeModal('modal-build');
+  showToast(`Berhasil membangun ${unit.name}!`, 'success');
+  updateHUD();
+  saveGame();
+}
+
+// Upgrade Unit ke Level Berikutnya
+function upgradeUnit(unit) {
+  if (unit.level >= 5) {
+    showToast("Unit sudah mencapai Level Maksimal (Lv 5)!", "warn");
+    return;
+  }
+
+  const template = CONFIG.MEDIA_TYPES[unit.typeId];
+  const upgradeCost = Math.round(template.cost * 0.7 * unit.level);
+
+  if (gameState.cash < upgradeCost) {
+    showToast("Uang tidak mencukupi untuk upgrade!", "warn");
+    return;
+  }
+
+  gameState.cash -= upgradeCost;
+  unit.level++;
+  unit.audience = Math.round(unit.audience * 1.35);
+
+  // Perbarui Mesh 3D dengan ketinggian baru
+  if (unit.mesh) scene.remove(unit.mesh);
+  unit.mesh = createBuildingMesh(unit);
+  scene.add(unit.mesh);
+
+  showToast(`${unit.name} naik ke Level ${unit.level}!`, 'success');
+  updateUnitModalUI(unit);
+  updateHUD();
+  saveGame();
+}
+
+// Hancurkan / Jual Unit
+function demolishUnit(unit) {
+  if (!confirm(`Apakah Anda yakin ingin menjual/menghancurkan ${unit.name}? Anda mendapat refund 50% nilai aset.`)) return;
+
+  const template = CONFIG.MEDIA_TYPES[unit.typeId];
+  const refund = Math.round(template.cost * 0.5);
+  gameState.cash += refund;
+
+  if (unit.mesh) scene.remove(unit.mesh);
+  gameState.units = gameState.units.filter(u => u.id !== unit.id);
+
+  closeModal('modal-unit');
+  showToast(`${unit.name} dijual. Kas +${formatRupiah(refund)}`, 'warn');
+  updateHUD();
+  saveGame();
+}
+
+// Rekrut / Pecat Staf
+function changeStaff(unit, staffKey, delta) {
+  const sDef = CONFIG.STAFF_TYPES[staffKey];
+  if (!sDef) return;
+
+  const currentCount = unit.staff[staffKey] || 0;
+  if (delta < 0 && currentCount <= 0) return;
+
+  unit.staff[staffKey] = Math.max(0, currentCount + delta);
+  updateUnitModalUI(unit);
+  saveGame();
+}
+
+// Jalankan Riset
+function purchaseResearch(nodeId) {
+  const node = CONFIG.RESEARCH_NODES.find(n => n.id === nodeId);
+  if (!node || gameState.completedResearch.includes(nodeId)) return;
+
+  if (gameState.cash < node.cost) {
+    showToast("Uang tidak mencukupi untuk riset ini!", "warn");
+    return;
+  }
+
+  gameState.cash -= node.cost;
+  gameState.completedResearch.push(nodeId);
+
+  // Terapkan Efek Langsung
+  if (node.effect.repBonus) {
+    gameState.reputation = Math.min(100, gameState.reputation + node.effect.repBonus);
+  }
+
+  showToast(`Riset Selesai: ${node.name}!`, 'success');
+  renderResearchTree();
+  updateHUD();
+  saveGame();
+}
+
+// Membuka Era Berikutnya
+function advanceToNextEra() {
+  const nextEra = CONFIG.ERAS.find(e => e.id === gameState.eraId + 1);
+  if (!nextEra) return;
+
+  // Cek Persyaratan
+  if (nextEra.reqResearch && !gameState.completedResearch.includes(nextEra.reqResearch)) {
+    const resNode = CONFIG.RESEARCH_NODES.find(n => n.id === nextEra.reqResearch);
+    showToast(`Perlu menyelesaikan riset: "${resNode ? resNode.name : nextEra.reqResearch}"!`, 'warn');
+    return;
+  }
+  if (gameState.cash < nextEra.unlockCost) {
+    showToast(`Perlu kas minimal ${formatRupiah(nextEra.unlockCost)} untuk membuka ${nextEra.name}!`, 'warn');
+    return;
+  }
+  if (gameState.reputation < nextEra.unlockRep) {
+    showToast(`Perlu reputasi minimal ${nextEra.unlockRep} untuk membuka ${nextEra.name}!`, 'warn');
+    return;
+  }
+
+  gameState.cash -= nextEra.unlockCost;
+  gameState.eraId = nextEra.id;
+  gameState.year = nextEra.year;
+
+  showToast(`Selamat Datang di ${nextEra.name} (${nextEra.year})!`, 'success');
+  closeModal('modal-era-info');
+  updateHUD();
+  saveGame();
+}
+
+// ==========================================
+// 6. UI (HUD & MODALS RENDERING)
+// ==========================================
+let activeSelectedUnit = null;
+
+function updateHUD() {
+  const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
+  
+  document.getElementById('hud-cash').textContent = formatRupiah(gameState.cash);
+  document.getElementById('hud-cash').style.color = gameState.cash < 0 ? 'var(--accent-red)' : 'var(--accent-green)';
+  
+  document.getElementById('hud-rep').textContent = `${gameState.reputation} / 100`;
+  document.getElementById('hud-audience').textContent = formatNumber(gameState.totalAudience);
+  
+  const profitEl = document.getElementById('hud-profit');
+  profitEl.textContent = formatRupiah(gameState.monthlyNetProfit);
+  profitEl.className = gameState.monthlyNetProfit >= 0 ? 'stat-value profit-pos' : 'stat-value profit-neg';
+
+  document.getElementById('hud-date').textContent = `Tahun ${gameState.year} • Bulan ${gameState.month}, Hari ${gameState.day}`;
+  document.getElementById('hud-era').textContent = `${currentEra.name} (${gameState.year})`;
+
+  // Count riset yang siap dibeli
+  const availCount = CONFIG.RESEARCH_NODES.filter(n => {
+    if (gameState.completedResearch.includes(n.id)) return false;
+    if (n.reqId && !gameState.completedResearch.includes(n.reqId)) return false;
+    return gameState.cash >= n.cost;
+  }).length;
+  document.getElementById('res-available-count').textContent = availCount;
+}
+
+// Modal: Bangun Unit Baru
+function openBuildModal(gridX, gridZ) {
+  const container = document.getElementById('build-options-container');
+  container.innerHTML = '';
+
+  const availableTypes = Object.values(CONFIG.MEDIA_TYPES).filter(t => t.eraId <= gameState.eraId);
+
+  availableTypes.forEach(template => {
+    const card = document.createElement('div');
+    card.className = 'option-card';
+    card.onclick = () => buildUnit(template.typeId, gridX, gridZ);
+
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="card-name">${template.name}</span>
+        <span class="card-cost">${formatRupiah(template.cost)}</span>
+      </div>
+      <div class="card-desc">${template.desc}</div>
+      <div class="card-stats">
+        <span>👥 Audiens Awal: <b>${formatNumber(template.baseAudience)}</b></span>
+        <span>💸 Biaya Ops: <b>${formatRupiah(template.baseOpCost)}</b>/bln</span>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // Tampilkan unit era berikutnya sebagai locked info
+  const lockedTypes = Object.values(CONFIG.MEDIA_TYPES).filter(t => t.eraId > gameState.eraId);
+  lockedTypes.forEach(template => {
+    const eraInfo = CONFIG.ERAS.find(e => e.id === template.eraId);
+    const card = document.createElement('div');
+    card.className = 'option-card locked';
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="card-name">🔒 ${template.name}</span>
+        <span style="font-size: 11px; color: var(--text-muted);">Buka di ${eraInfo ? eraInfo.name : 'Era Mendatang'}</span>
+      </div>
+      <div class="card-desc">${template.desc}</div>
+    `;
+    container.appendChild(card);
+  });
+
+  openModal('modal-build');
+}
+
+// Modal: Kelola Unit
+function openUnitModal(unit) {
+  activeSelectedUnit = unit;
+  updateUnitModalUI(unit);
+  openModal('modal-unit');
+}
+
+function updateUnitModalUI(unit) {
+  const template = CONFIG.MEDIA_TYPES[unit.typeId];
+  document.getElementById('unit-modal-title').textContent = `📰 Kelola ${unit.name}`;
+  document.getElementById('unit-stat-name').textContent = unit.name;
+  document.getElementById('unit-stat-level').textContent = `Level ${unit.level}`;
+  document.getElementById('unit-stat-aud').textContent = formatNumber(unit.audience);
+
+  // Estimasi pendapatan & biaya
+  const adRatio = unit.adAlloc / 100;
+  let adStaff = 1.0;
+  let staffSal = 0;
+  for (const [stKey, cnt] of Object.entries(unit.staff)) {
+    const sDef = CONFIG.STAFF_TYPES[stKey];
+    if (sDef && cnt > 0) {
+      staffSal += sDef.salary * cnt;
+      adStaff += sDef.adBonus * cnt;
+    }
+  }
+  const estRev = Math.round(unit.audience * template.baseRevPerAud * (0.5 + adRatio) * adStaff);
+  const estCost = Math.round(template.baseOpCost * (1.0 + (unit.level - 1) * 0.35) + staffSal);
+
+  document.getElementById('unit-stat-rev').textContent = formatRupiah(estRev);
+  document.getElementById('unit-stat-cost').textContent = formatRupiah(estCost);
+
+  // Sliders
+  document.getElementById('slider-quality').value = unit.qualityAlloc;
+  document.getElementById('slider-quantity').value = unit.quantityAlloc;
+  document.getElementById('slider-ads').value = unit.adAlloc;
+  document.getElementById('val-slider-quality').textContent = unit.qualityAlloc;
+  document.getElementById('val-slider-quantity').textContent = unit.quantityAlloc;
+  document.getElementById('val-slider-ads').textContent = unit.adAlloc;
+
+  // Render Tabel Staf
+  const tbody = document.getElementById('unit-staff-tbody');
+  tbody.innerHTML = '';
+  Object.entries(CONFIG.STAFF_TYPES).forEach(([stKey, sDef]) => {
+    const count = unit.staff[stKey] || 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><b>${sDef.name}</b></td>
+      <td style="color:var(--text-muted); font-size:11px;">${sDef.desc}</td>
+      <td>${formatRupiah(sDef.salary)}</td>
+      <td style="font-weight:700; color:#38bdf8;">${count}</td>
+      <td>
+        <button class="staff-btn" onclick="changeStaff(activeSelectedUnit, '${stKey}', -1)">-</button>
+        <button class="staff-btn" onclick="changeStaff(activeSelectedUnit, '${stKey}', 1)">+</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Tombol Upgrade
+  const nextLvl = unit.level + 1;
+  const upgradeCost = Math.round(template.cost * 0.7 * unit.level);
+  document.getElementById('upgrade-target-level').textContent = nextLvl <= 5 ? nextLvl : "Maks";
+  document.getElementById('upgrade-cost-text').textContent = nextLvl <= 5 ? formatRupiah(upgradeCost) : "Maksimal";
+  document.getElementById('btn-upgrade-unit').onclick = () => upgradeUnit(unit);
+  document.getElementById('btn-demolish-unit').onclick = () => demolishUnit(unit);
+}
+
+// Modal: Riset
+function renderResearchTree() {
+  const container = document.getElementById('research-nodes-container');
+  container.innerHTML = '';
+
+  CONFIG.RESEARCH_NODES.forEach(node => {
+    const isCompleted = gameState.completedResearch.includes(node.id);
+    const hasReq = !node.reqId || gameState.completedResearch.includes(node.reqId);
+    const canAfford = gameState.cash >= node.cost;
+
+    const div = document.createElement('div');
+    div.className = `research-node ${isCompleted ? 'completed' : (hasReq ? 'available' : 'locked')}`;
+
+    if (!isCompleted && hasReq) {
+      div.onclick = () => purchaseResearch(node.id);
+    }
+
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; font-size:14px;">${node.name}</span>
+        <span class="pill-tag ${isCompleted ? 'pill-green' : (hasReq ? 'pill-blue' : 'pill-gray')}">
+          ${isCompleted ? 'Selesai' : (hasReq ? formatRupiah(node.cost) : 'Terkunci')}
+        </span>
+      </div>
+      <div style="font-size:12px; color:var(--text-muted);">${node.desc}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// Modal: Pasar & Pesaing
+function renderMarketShare() {
+  const list = document.getElementById('market-competitors-list');
+  list.innerHTML = '';
+
+  const totalMarketAudience = gameState.totalAudience + gameState.competitors.reduce((acc, c) => acc + c.audience, 0);
+
+  const allPlayers = [
+    { name: "Kerajaan Media Anda (Kalian)", audience: gameState.totalAudience, color: "#3b82f6", isUser: true },
+    ...gameState.competitors.map(c => ({ name: c.name, audience: c.audience, color: c.color, isUser: false }))
+  ];
+
+  allPlayers.sort((a, b) => b.audience - a.audience);
+
+  allPlayers.forEach((p, idx) => {
+    const share = totalMarketAudience > 0 ? ((p.audience / totalMarketAudience) * 100).toFixed(1) : 0;
+    const row = document.createElement('div');
+    row.className = 'market-bar-wrap';
+    row.innerHTML = `
+      <div class="market-label-row">
+        <span>#${idx + 1} ${p.name} ${p.isUser ? '⭐' : ''}</span>
+        <span style="color: ${p.color};">${formatNumber(p.audience)} (${share}%)</span>
+      </div>
+      <div class="market-track">
+        <div class="market-fill" style="width: ${share}%; background-color: ${p.color};"></div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  document.getElementById('market-win-tracker').textContent = `${gameState.consecutiveWinMonths} / 12 Bulan`;
+
+  // Sinergi status
+  const distinctTypes = new Set(gameState.units.map(u => u.typeId)).size;
+  document.getElementById('synergy-status-text').textContent =
+    `Anda memiliki ${distinctTypes} tipe media berbeda. Bonus audiens aktif: +${distinctTypes >= 2 ? (distinctTypes * 10) : 0}%.`;
+}
+
+// Modal: Laporan Finansial Bulanan
+function renderFinancialReport() {
+  const r = gameState.lastReport;
+  const content = document.getElementById('report-content');
+
+  content.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="option-card" style="cursor:default;">
+        <div class="card-top">
+          <span>Total Pendapatan Iklan & Sirkulasi</span>
+          <span class="profit-pos">+${formatRupiah(r.grossRevenue)}</span>
+        </div>
+      </div>
+      <div class="option-card" style="cursor:default;">
+        <div class="card-top">
+          <span>Gaji Staf Redaksi & Sales</span>
+          <span class="profit-neg">-${formatRupiah(r.staffSalaries)}</span>
+        </div>
+      </div>
+      <div class="option-card" style="cursor:default;">
+        <div class="card-top">
+          <span>Biaya Operasional Percetakan/Studio/Server</span>
+          <span class="profit-neg">-${formatRupiah(r.opCosts)}</span>
+        </div>
+      </div>
+      <div style="background: rgba(255,255,255,0.06); padding: 14px; border-radius: 10px; display:flex; justify-content:space-between; align-items:center; font-size:16px; font-weight:800;">
+        <span>Laba/Rugi Bersih Bulan Ini:</span>
+        <span class="${r.netProfit >= 0 ? 'profit-pos' : 'profit-neg'}">${formatRupiah(r.netProfit)}</span>
+      </div>
+    </div>
+  `;
+}
+
+// Modal: Garis Waktu Era
+function renderEraInfo() {
+  const content = document.getElementById('era-info-content');
+  content.innerHTML = '';
+
+  CONFIG.ERAS.forEach(era => {
+    const isCurrent = era.id === gameState.eraId;
+    const isUnlocked = era.id <= gameState.eraId;
+    const isNext = era.id === gameState.eraId + 1;
+
+    const div = document.createElement('div');
+    div.className = `option-card ${!isUnlocked && !isNext ? 'locked' : ''}`;
+    div.style.cursor = isNext ? 'pointer' : 'default';
+
+    let statusPill = `<span class="pill-tag pill-gray">Masa Depan</span>`;
+    if (isCurrent) statusPill = `<span class="pill-tag pill-green">Era Aktif</span>`;
+    else if (isUnlocked) statusPill = `<span class="pill-tag pill-blue">Selesai</span>`;
+    else if (isNext) statusPill = `<span class="pill-tag pill-blue">Buka Sekarang</span>`;
+
+    div.innerHTML = `
+      <div class="card-top">
+        <span class="card-name">${era.name} (${era.year})</span>
+        ${statusPill}
+      </div>
+      <div class="card-desc">${era.desc}</div>
+      ${isNext ? `
+        <div style="font-size:11px; color:#cbd5e1; margin-top:4px;">
+          Syarat: Kas ${formatRupiah(era.unlockCost)} • Reputasi ${era.unlockRep}
+        </div>
+      ` : ''}
+    `;
+
+    if (isNext) {
+      div.onclick = advanceToNextEra;
+    }
+    content.appendChild(div);
+  });
+}
+
+// ==========================================
+// 7. EVENTS (12 PERISTIWA BERITA ACAK)
+// ==========================================
+const EVENTS_LIST = [
+  {
+    title: "Skandal Korupsi Pejabat Tinggi",
+    desc: "Wartawan investigasi kita menemukan bukti suap proyek infrastruktur oleh pejabat daerah.",
+    optA: {
+      title: "Bongkar Skandal di Berita Utama!",
+      desc: "-Biaya hukum Rp 6 Juta, +18 Reputasi, +25.000 Audiens",
+      action: () => {
+        gameState.cash -= 6000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 18);
+        gameState.totalAudience += 25000;
+        showToast("Investigasi mengguncang kota! Reputasi meroket.", "success");
+      }
+    },
+    optB: {
+      title: "Terima Uang Tutup Mulut",
+      desc: "+Kas Rp 20 Juta, -22 Reputasi pers",
+      action: () => {
+        gameState.cash += 20000000;
+        gameState.reputation = Math.max(0, gameState.reputation - 22);
+        showToast("Uang suap diterima diam-diam. Integritas tercoreng.", "danger");
+      }
+    }
+  },
+  {
+    title: "Berita Eksklusif Bocoran Dokumen",
+    desc: "Sumber anonim menawarkan dokumen rahasia perusahaan multinasional yang mencemari lingkungan.",
+    optA: {
+      title: "Verifikasi Teliti & Mendalam",
+      desc: "Biaya riset Rp 4 Juta, +12 Reputasi kredibel",
+      action: () => {
+        gameState.cash -= 4000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 12);
+        showToast("Laporan diverifikasi tanpa celah. Pembaca makin percaya.", "success");
+      }
+    },
+    optB: {
+      title: "Rilis Kilat Demi Kejar Viral!",
+      desc: "+50.000 Audiens, 50% risiko digugat Rp 15 Juta",
+      action: () => {
+        gameState.totalAudience += 50000;
+        if (Math.random() < 0.5) {
+          gameState.cash -= 15000000;
+          showToast("Berita viral tetapi digugat denda Rp 15 Jt!", "warn");
+        } else {
+          showToast("Berita viral tanpa tuntutan hukum!", "success");
+        }
+      }
+    }
+  },
+  {
+    title: "Lonjakan Biaya Kertas & Operasional",
+    desc: "Harga bahan baku dan biaya produksi melonjak tajam karena krisis rantai pasok.",
+    optA: {
+      title: "Naikkan Harga Jual & Tarif Iklan",
+      desc: "Kas stabil, namun -10% audiens pembaca",
+      action: () => {
+        gameState.units.forEach(u => u.audience = Math.round(u.audience * 0.9));
+        showToast("Harga dinaikkan. Beberapa pembaca beralih ke pesaing.", "warn");
+      }
+    },
+    optB: {
+      title: "Tanggung Biaya dengan Kas Perusahaan",
+      desc: "-Kas Rp 12 Juta, loyalitas pembaca tetap terjaga",
+      action: () => {
+        gameState.cash -= 12000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 5);
+        showToast("Perusahaan menelan kerugian demi kesetiaan pembaca.", "success");
+      }
+    }
+  },
+  {
+    title: "Gugatan Hukum Pencemaran Nama Baik",
+    desc: "Seorang konglomerat menuntut redaksi kita atas artikel kritik monopoli bisnis.",
+    optA: {
+      title: "Sewa Tim Pengacara Terbaik!",
+      desc: "-Kas Rp 18 Juta, +15 Reputasi independensi",
+      action: () => {
+        gameState.cash -= 18000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 15);
+        showToast("Kemenangan di meja hijau! Independensi pers dipuji luas.", "success");
+      }
+    },
+    optB: {
+      title: "Tarik Berita & Minta Maaf",
+      desc: "-Kas Rp 4 Juta uang damai, -18 Reputasi",
+      action: () => {
+        gameState.cash -= 4000000;
+        gameState.reputation = Math.max(0, gameState.reputation - 18);
+        showToast("Permintaan maaf diterbitkan. Kredibilitas Anda anjlok.", "danger");
+      }
+    }
+  },
+  {
+    title: "Wawancara Eksklusif Selebritas Dunia",
+    desc: "Bintang ternama bersedia memberikan wawancara blak-blakan asalkan dibayar honor eksklusif.",
+    optA: {
+      title: "Bayar Honor Eksklusif",
+      desc: "-Kas Rp 15 Juta, +65.000 Audiens baru",
+      action: () => {
+        gameState.cash -= 15000000;
+        gameState.totalAudience += 65000;
+        showToast("Wawancara laris manis di pasaran!", "success");
+      }
+    },
+    optB: {
+      title: "Tolak Pembayaran Narasumber",
+      desc: "Sesuai kode etik jurnalisme (+8 Reputasi)",
+      action: () => {
+        gameState.reputation = Math.min(100, gameState.reputation + 8);
+        showToast("Menolak bayar narasumber demi menjaga prinsip etika pers.", "success");
+      }
+    }
+  },
+  {
+    title: "Boikot Sponsor Terbesar",
+    desc: "Pengiklan utama mengancam hengkang jika kita tidak menghapus kritik atas produk gagal mereka.",
+    optA: {
+      title: "Tunduk pada Tekanan Pengiklan",
+      desc: "Pendapatan aman, -20 Reputasi integritas",
+      action: () => {
+        gameState.cash += 15000000;
+        gameState.reputation = Math.max(0, gameState.reputation - 20);
+        showToast("Iklan aman, namun para jurnalis merasa dikhianati.", "danger");
+      }
+    },
+    optB: {
+      title: "Tolak Sensor Bisnis!",
+      desc: "-Kas Rp 10 Juta pendapatan hilang, +22 Reputasi",
+      action: () => {
+        gameState.cash -= 10000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 22);
+        showToast("Prinsip jurnalisme dipertahankan! Dukungan publik berdatangan.", "success");
+      }
+    }
+  },
+  {
+    title: "Pesaing Membajak Wartawan Senior",
+    desc: "Nusantara Post menawarkan gaji fantastis kepada jurnalis andalan kita.",
+    optA: {
+      title: "Beri Kenaikan Gaji & Bonus Retensi",
+      desc: "-Kas Rp 10 Juta, tim tetap utuh & termotivasi",
+      action: () => {
+        gameState.cash -= 10000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 5);
+        showToast("Staf senior bertahan dan makin loyal pada perusahaan.", "success");
+      }
+    },
+    optB: {
+      title: "Lepaskan & Promosikan Jurnalis Muda",
+      desc: "Hemat kas, -5% kualitas konten selama 1 bulan",
+      action: () => {
+        showToast("Jurnalis muda diberi ruang panggung untuk berkembang.", "warn");
+      }
+    }
+  },
+  {
+    title: "Ledakan Tren Video Viral",
+    desc: "Sebuah topik konyol sedang meledak di masyarakat luas.",
+    optA: {
+      title: "Bikin Konten Kilat Demi Views!",
+      desc: "-Biaya produksi Rp 8 Juta, +75.000 Audiens instan",
+      action: () => {
+        gameState.cash -= 8000000;
+        gameState.totalAudience += 75000;
+        showToast("Konten meledak dan membanjiri feed audiens!", "success");
+      }
+    },
+    optB: {
+      title: "Tetap Fokus pada Isu Bobot",
+      desc: "+10 Reputasi pers yang dewasa & berwibawa",
+      action: () => {
+        gameState.reputation = Math.min(100, gameState.reputation + 10);
+        showToast("Media Anda dikenal sebagai benteng berita berbobot.", "success");
+      }
+    }
+  },
+  {
+    title: "Mogok Kerja Karyawan Logistik",
+    desc: "Staf distribusi menuntut peningkatan tunjangan kesehatan dan jam kerja manusiawi.",
+    optA: {
+      title: "Penuhi Tuntutan & Beri Fasilitas",
+      desc: "-Kas Rp 14 Juta, +12 Reputasi kesejahteraan staf",
+      action: () => {
+        gameState.cash -= 14000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 12);
+        showToast("Kesejahteraan karyawan membuahkan hasil kinerja maksimal.", "success");
+      }
+    },
+    optB: {
+      title: "Gunakan Pekerja Pengganti Sementara",
+      desc: "-Kas Rp 3 Juta, -15 Reputasi hubungan kerja",
+      action: () => {
+        gameState.cash -= 3000000;
+        gameState.reputation = Math.max(0, gameState.reputation - 15);
+        showToast("Mogok dihentikan paksa. Moral perusahaan merosot.", "danger");
+      }
+    }
+  },
+  {
+    title: "Liputan Khusus Krisis Bencana Alam",
+    desc: "Gempa bumi dahsyat melanda wilayah selatan. Warga butuh informasi darurat.",
+    optA: {
+      title: "Siaran Non-Stop Gratis & Buka Donasi",
+      desc: "-Kas Rp 16 Juta biaya operasional, +28 Reputasi, +45.000 Pembaca",
+      action: () => {
+        gameState.cash -= 16000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 28);
+        gameState.totalAudience += 45000;
+        showToast("Peran kemanusiaan media Anda diapresiasi oleh seluruh bangsa.", "success");
+      }
+    },
+    optB: {
+      title: "Liputan Rutin dengan Iklan Komersial",
+      desc: "+Kas Rp 12 Juta iklan, -12 Reputasi simpati publik",
+      action: () => {
+        gameState.cash += 12000000;
+        gameState.reputation = Math.max(0, gameState.reputation - 12);
+        showToast("Iklan terus berjalan saat bencana. Kritik bermunculan.", "warn");
+      }
+    }
+  },
+  {
+    title: "Peretasan Sistem Redaksi Digital",
+    desc: "Kelompok peretas tak dikenal membobol server data pelanggan.",
+    optA: {
+      title: "Investasi Pertahanan Siber Menyeluruh",
+      desc: "-Kas Rp 22 Juta, data aman & +10 Reputasi keamanan",
+      action: () => {
+        gameState.cash -= 22000000;
+        gameState.reputation = Math.min(100, gameState.reputation + 10);
+        showToast("Benteng siber ditingkatkan ke standar enkripsi tertinggi.", "success");
+      }
+    },
+    optB: {
+      title: "Tambal Seadanya secara Internal",
+      desc: "-Kas Rp 4 Juta, 40% risiko denda kebocoran Rp 20 Juta",
+      action: () => {
+        gameState.cash -= 4000000;
+        if (Math.random() < 0.4) {
+          gameState.cash -= 20000000;
+          gameState.reputation = Math.max(0, gameState.reputation - 15);
+          showToast("Data bocor! Denda regulator sebesar Rp 20 Juta dijatuhkan.", "danger");
+        } else {
+          showToast("Penambalan darurat berhasil menahan serangan.", "warn");
+        }
+      }
+    }
+  },
+  {
+    title: "Tawaran Investasi Konglomerat Asing",
+    desc: "Grup modal ventura multinasional menawarkan suntikan dana segar dengan syarat kursi dewan.",
+    optA: {
+      title: "Terima Suntikan Dana Segar",
+      desc: "+Kas Rp 50 Juta langsung, -10 Reputasi otonomi pers",
+      action: () => {
+        gameState.cash += 50000000;
+        gameState.reputation = Math.max(0, gameState.reputation - 10);
+        showToast("Modal besar masuk! Ekspansi bisa dipercepat.", "success");
+      }
+    },
+    optB: {
+      title: "Tolak demi Independensi Penuh",
+      desc: "+15 Reputasi integritas, media 100% mandiri",
+      action: () => {
+        gameState.reputation = Math.min(100, gameState.reputation + 15);
+        showToast("Kemandirian redaksi tetap suci dari intervensi modal asing.", "success");
+      }
+    }
+  }
+];
+
+function triggerRandomEvent() {
+  const evt = EVENTS_LIST[Math.floor(Math.random() * EVENTS_LIST.length)];
+  
+  // Jeda sementara
+  const savedSpeed = gameState.speed;
+  gameState.speed = 0;
+
+  document.getElementById('event-title').textContent = evt.title;
+  document.getElementById('event-desc').textContent = evt.desc;
+
+  document.getElementById('event-opt-a-title').textContent = evt.optA.title;
+  document.getElementById('event-opt-a-desc').textContent = evt.optA.desc;
+  document.getElementById('event-btn-a').onclick = () => {
+    evt.optA.action();
+    closeModal('modal-event');
+    gameState.speed = savedSpeed;
+    updateHUD();
+    saveGame();
+  };
+
+  document.getElementById('event-opt-b-title').textContent = evt.optB.title;
+  document.getElementById('event-opt-b-desc').textContent = evt.optB.desc;
+  document.getElementById('event-btn-b').onclick = () => {
+    evt.optB.action();
+    closeModal('modal-event');
+    gameState.speed = savedSpeed;
+    updateHUD();
+    saveGame();
+  };
+
+  openModal('modal-event');
+}
+
+function triggerVictory() {
+  gameState.gameEnded = true;
+  gameState.speed = 0;
+
+  document.getElementById('endgame-icon').textContent = "👑";
+  document.getElementById('endgame-title').textContent = "Kemenangan Mutlak: Raja Media Sejati!";
+  document.getElementById('endgame-desc').textContent =
+    "Selamat! Anda telah membangun imperium media terbesar dari percetakan koran sederhana hingga memimpin pangsa pasar era sosial media selama 12 bulan berturut-turut!";
+
+  document.getElementById('endgame-stats').innerHTML = `
+    <div>• Total Kas Akhir: <b>${formatRupiah(gameState.cash)}</b></div>
+    <div>• Reputasi Pers: <b>${gameState.reputation} / 100</b></div>
+    <div>• Total Audiens: <b>${formatNumber(gameState.totalAudience)}</b></div>
+    <div>• Unit Media Dibangun: <b>${gameState.units.length} Unit</b></div>
+    <div>• Tahun Pencapaian: <b>${gameState.year}</b></div>
+  `;
+
+  document.getElementById('btn-endgame-restart').onclick = resetGame;
+  openModal('modal-endgame');
+}
+
+function triggerGameOver(reasonTitle, reasonDesc) {
+  gameState.gameEnded = true;
+  gameState.speed = 0;
+
+  document.getElementById('endgame-icon').textContent = "💥";
+  document.getElementById('endgame-title').textContent = reasonTitle;
+  document.getElementById('endgame-desc').textContent = reasonDesc;
+
+  document.getElementById('endgame-stats').innerHTML = `
+    <div>• Bertahan Hingga: <b>Tahun ${gameState.year}, Bulan ${gameState.month}</b></div>
+    <div>• Total Audiens Terakhir: <b>${formatNumber(gameState.totalAudience)}</b></div>
+    <div>• Kas Terakhir: <b>${formatRupiah(gameState.cash)}</b></div>
+  `;
+
+  document.getElementById('btn-endgame-restart').onclick = resetGame;
+  openModal('modal-endgame');
+}
+
+// Helpers Modal & Toast
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    if (toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 3500);
+}
+
+function showFloatingMoney(text, worldPos) {
+  const v = worldPos.clone();
+  v.y += 3.2;
+  v.project(camera);
+
+  // Jika di luar layar
+  if (v.z > 1) return;
+
+  const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-(v.y * 0.5) + 0.5) * window.innerHeight;
+
+  const el = document.createElement('div');
+  el.className = 'floating-money';
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  el.style.color = '#10b981';
+  el.textContent = text;
+
+  document.getElementById('floating-container').appendChild(el);
+  setTimeout(() => {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  }, 1600);
+}
+
+// Sliders Event Handlers
+function setupSliderHandlers() {
+  const sQ = document.getElementById('slider-quality');
+  const sK = document.getElementById('slider-quantity');
+  const sA = document.getElementById('slider-ads');
+
+  const onSliderChange = () => {
+    if (!activeSelectedUnit) return;
+    activeSelectedUnit.qualityAlloc = parseInt(sQ.value);
+    activeSelectedUnit.quantityAlloc = parseInt(sK.value);
+    activeSelectedUnit.adAlloc = parseInt(sA.value);
+
+    document.getElementById('val-slider-quality').textContent = sQ.value;
+    document.getElementById('val-slider-quantity').textContent = sK.value;
+    document.getElementById('val-slider-ads').textContent = sA.value;
+    saveGame();
+  };
+
+  sQ.oninput = onSliderChange;
+  sK.oninput = onSliderChange;
+  sA.oninput = onSliderChange;
+}
+
+// Setup Tombol HUD Bawah & Kecepatan
+function setupUIButtons() {
+  document.getElementById('btn-speed-0').onclick = () => setSpeed(0);
+  document.getElementById('btn-speed-1').onclick = () => setSpeed(1);
+  document.getElementById('btn-speed-2').onclick = () => setSpeed(2);
+  document.getElementById('btn-speed-5').onclick = () => setSpeed(5);
+
+  document.getElementById('hud-era').onclick = () => {
+    renderEraInfo();
+    openModal('modal-era-info');
+  };
+
+  document.getElementById('btn-open-market').onclick = () => {
+    renderMarketShare();
+    openModal('modal-market');
+  };
+
+  document.getElementById('btn-open-research').onclick = () => {
+    renderResearchTree();
+    openModal('modal-research');
+  };
+
+  document.getElementById('btn-open-report').onclick = () => {
+    renderFinancialReport();
+    openModal('modal-report');
+  };
+
+  document.getElementById('btn-reset-game').onclick = resetGame;
+}
+
+function setSpeed(sp) {
+  gameState.speed = sp;
+  ['0', '1', '2', '5'].forEach(s => {
+    const el = document.getElementById(`btn-speed-${s}`);
+    if (el) el.classList.toggle('active', parseInt(s) === sp);
+  });
+}
+
+// ==========================================
+// 8. MAIN LOOP
+// ==========================================
+let lastTime = performance.now();
+const clock = new THREE.Clock();
+
+function animate(currentTime) {
+  requestAnimationFrame(animate);
+
+  const delta = (currentTime - lastTime) / 1000;
+  lastTime = currentTime;
+
+  // Jalankan Logika Waktu Game
+  tickGame(delta);
+
+  // Animasi Three.js & Atmosfer
+  const elapsedTime = clock.getElapsedTime();
+  updateBuildingAnimations(elapsedTime);
+  updateEraAtmosphere();
+
+  // Render Scene
+  renderer.render(scene, camera);
+}
+
+// Inisialisasi Saat Dokumen Siap
+window.addEventListener('DOMContentLoaded', () => {
+  initThree();
+  setupUIButtons();
+  setupSliderHandlers();
+
+  // Muat state yang tersimpan jika ada
+  const hasLoaded = loadGame();
+  if (!hasLoaded) {
+    // Game Baru: Buat 1 unit koran pertama otomatis di kavling tengah untuk menyambut pemain
+    const initUnit = {
+      id: "unit_starter",
+      gridX: 2,
+      gridZ: 2,
+      typeId: 'newspaper',
+      name: "Percetakan Suara Rakyat #1",
+      level: 1,
+      audience: 10000,
+      qualityAlloc: 40,
+      quantityAlloc: 30,
+      adAlloc: 30,
+      staff: { wartawan: 1, editor: 0, kreator: 0, sales: 1 },
+      mesh: null
+    };
+    initUnit.mesh = createBuildingMesh(initUnit);
+    scene.add(initUnit.mesh);
+    gameState.units.push(initUnit);
+    saveGame();
+    showToast("Selamat datang di Media Mogul! Percetakan koran pertama Anda telah beroperasi.", "success");
+  }
+
+  updateHUD();
+  animate(performance.now());
+});
+</script>
+</body>
+</html>
