@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Media Mogul - Tycoon Simulasi Kerajaan Media</title>
-  <!-- Three.js r128 CDN (Standar Tanpa Plugin Eksternal) -->
+  <!-- Three.js r128 CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     /* ========================================================
@@ -22,7 +22,6 @@
       --bg-dark: #0f172a;
       --panel-bg: rgba(15, 23, 42, 0.88);
       --panel-border: rgba(255, 255, 255, 0.12);
-      --panel-glow: rgba(59, 130, 246, 0.2);
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --accent-green: #10b981;
@@ -148,7 +147,6 @@
     .profit-pos { color: var(--accent-green); }
     .profit-neg { color: var(--accent-red); }
 
-    /* Controls Bar (Speed & Actions) */
     .controls-group {
       display: flex;
       align-items: center;
@@ -183,7 +181,7 @@
       color: #fff;
     }
 
-    /* Sub HUD: Bottom Navigation Controls & Info */
+    /* Sub HUD: Bottom Navigation */
     #hud-bottom {
       position: absolute;
       bottom: 16px;
@@ -332,7 +330,6 @@
       gap: 10px;
     }
 
-    /* Option Cards */
     .option-card {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--panel-border);
@@ -446,7 +443,7 @@
       background: rgba(255, 255, 255, 0.18);
     }
 
-    /* Floating Money & Notifications */
+    /* Floating Money Text Layer */
     #floating-container {
       position: absolute;
       top: 0;
@@ -561,7 +558,6 @@
       cursor: not-allowed;
     }
 
-    /* Badge & Tag */
     .pill-tag {
       font-size: 10px;
       font-weight: 700;
@@ -578,18 +574,12 @@
 <body>
 
 <div id="game-container">
-  <!-- 3D Canvas Container -->
   <div id="canvas-container"></div>
-  
-  <!-- Floating Text Layer -->
   <div id="floating-container"></div>
-  
-  <!-- Toasts -->
   <div id="toast-container"></div>
 
   <!-- HUD Atas -->
   <header id="hud-top">
-    <!-- Brand & Era -->
     <div class="hud-card">
       <div>
         <div class="brand-title">MEDIA MOGUL</div>
@@ -602,7 +592,6 @@
       </div>
     </div>
 
-    <!-- Core Resources -->
     <div class="hud-card stat-group">
       <div class="stat-item">
         <span class="stat-label">Kas Perusahaan</span>
@@ -622,7 +611,6 @@
       </div>
     </div>
 
-    <!-- Speed Controls -->
     <div class="hud-card controls-group">
       <button class="btn-icon" id="btn-speed-0" title="Jeda Game">⏸</button>
       <button class="btn-icon active" id="btn-speed-1" title="Kecepatan Normal">1x</button>
@@ -653,79 +641,67 @@
     </div>
   </footer>
 
-  <!-- ========================================================
-       MODAL: BANGUN UNIT BARU
-       ======================================================== -->
+  <!-- MODAL: BANGUN UNIT BARU -->
   <div class="modal-overlay" id="modal-build">
     <div class="modal-box">
       <div class="modal-header">
         <div class="modal-title">🏗️ Bangun Unit Media Baru</div>
         <button class="modal-close" onclick="closeModal('modal-build')">&times;</button>
       </div>
-      <div class="modal-body" id="build-options-container">
-        <!-- Rendered via JS -->
-      </div>
+      <div class="modal-body" id="build-options-container"></div>
       <div class="modal-footer">
         <button class="action-btn" onclick="closeModal('modal-build')">Batal</button>
       </div>
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: KELOLA UNIT MEDIA
-       ======================================================== -->
+  <!-- MODAL: KELOLA UNIT MEDIA -->
   <div class="modal-overlay" id="modal-unit">
     <div class="modal-box" style="max-width: 660px;">
       <div class="modal-header">
-        <div class="modal-title" id="unit-modal-title">📰 Kelola Percetakan Koran</div>
+        <div class="modal-title" id="unit-modal-title">📰 Kelola Unit</div>
         <button class="modal-close" onclick="closeModal('modal-unit')">&times;</button>
       </div>
       <div class="modal-body">
-        <!-- Summary Stats Card -->
         <div class="option-card" style="cursor: default;">
           <div class="card-top">
-            <span style="font-size: 16px; font-weight:700;" id="unit-stat-name">Koran Harian Merdeka</span>
+            <span style="font-size: 16px; font-weight:700;" id="unit-stat-name">-</span>
             <span class="pill-tag pill-blue" id="unit-stat-level">Level 1</span>
           </div>
           <div class="card-stats">
-            <span>👥 Audiens: <b id="unit-stat-aud">15.000</b></span>
-            <span>💰 Pendapatan: <b class="profit-pos" id="unit-stat-rev">Rp 3.500.000</b>/bln</span>
-            <span>💸 Biaya Operasional: <b class="profit-neg" id="unit-stat-cost">Rp 1.800.000</b>/bln</span>
+            <span>👥 Audiens: <b id="unit-stat-aud">0</b></span>
+            <span>💰 Pendapatan: <b class="profit-pos" id="unit-stat-rev">Rp 0</b>/bln</span>
+            <span>💸 Biaya Ops: <b class="profit-neg" id="unit-stat-cost">Rp 0</b>/bln</span>
           </div>
         </div>
 
-        <!-- Slider Alokasi Anggaran -->
         <div style="background: rgba(255,255,255,0.02); padding: 14px; border-radius: 10px; border: 1px solid var(--panel-border);">
           <div style="font-size: 13px; font-weight:700; margin-bottom: 10px; color:#cbd5e1;">
             ⚖️ Alokasi Anggaran Konten & Monetisasi
           </div>
-          
           <div class="control-row" style="margin-bottom: 12px;">
             <div class="control-header">
               <span>Kualitas Jurnalisme (<span id="val-slider-quality">40</span>%)</span>
-              <span style="font-size: 11px; color: var(--accent-green);">+Audiens & Reputasi Pers</span>
+              <span style="font-size: 11px; color: var(--accent-green);">+Audiens & Reputasi</span>
             </div>
             <input type="range" class="control-slider" id="slider-quality" min="10" max="80" value="40">
           </div>
-
           <div class="control-row" style="margin-bottom: 12px;">
             <div class="control-header">
               <span>Kuantitas / Jangkauan Viral (<span id="val-slider-quantity">30</span>%)</span>
-              <span style="font-size: 11px; color: #60a5fa;">+Pertumbuhan Pembaca Baru</span>
+              <span style="font-size: 11px; color: #60a5fa;">+Pertumbuhan Audiens Baru</span>
             </div>
             <input type="range" class="control-slider" id="slider-quantity" min="10" max="80" value="30">
           </div>
-
           <div class="control-row">
             <div class="control-header">
               <span>Intensitas Iklan (<span id="val-slider-ads">30</span>%)</span>
-              <span style="font-size: 11px; color: var(--accent-gold);">+Uang Iklan (Jika >50% audiens jenuh!)</span>
+              <span style="font-size: 11px; color: var(--accent-gold);">+Uang Iklan (>50% bikin audiens jenuh!)</span>
             </div>
             <input type="range" class="control-slider" id="slider-ads" min="10" max="80" value="30">
           </div>
         </div>
 
-        <!-- Staff Management -->
         <div style="background: rgba(255,255,255,0.02); padding: 14px; border-radius: 10px; border: 1px solid var(--panel-border);">
           <div style="font-size: 13px; font-weight:700; margin-bottom: 8px; color:#cbd5e1;">
             👥 Rekrutmen & Manajemen Staf Redaksi
@@ -740,19 +716,16 @@
                 <th>Aksi</th>
               </tr>
             </thead>
-            <tbody id="unit-staff-tbody">
-              <!-- Rendered via JS -->
-            </tbody>
+            <tbody id="unit-staff-tbody"></tbody>
           </table>
         </div>
 
-        <!-- Unit Upgrades & Actions -->
         <div style="display:flex; justify-content:space-between; gap:10px; margin-top:4px;">
           <button class="action-btn primary" id="btn-upgrade-unit" style="flex:1; justify-content:center;">
-            ⭐ Tingkatkan ke Level <span id="upgrade-target-level">2</span> (<span id="upgrade-cost-text">Rp 8.000.000</span>)
+            ⭐ Tingkatkan ke Level <span id="upgrade-target-level">2</span> (<span id="upgrade-cost-text">-</span>)
           </button>
           <button class="action-btn" id="btn-demolish-unit" style="color:#f87171; border-color:rgba(239,68,68,0.4);">
-            🗑️ Jual/Hancurkan Unit
+            🗑️ Jual Unit
           </button>
         </div>
       </div>
@@ -762,9 +735,7 @@
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: RISET TEKNOLOGI
-       ======================================================== -->
+  <!-- MODAL: RISET -->
   <div class="modal-overlay" id="modal-research">
     <div class="modal-box" style="max-width: 680px;">
       <div class="modal-header">
@@ -775,9 +746,7 @@
         <div style="font-size: 12px; color: var(--text-muted);">
           Riset membuka era baru, efisiensi operasional, serta fitur monetisasi eksklusif.
         </div>
-        <div class="research-grid" id="research-nodes-container">
-          <!-- Rendered via JS -->
-        </div>
+        <div class="research-grid" id="research-nodes-container"></div>
       </div>
       <div class="modal-footer">
         <button class="action-btn" onclick="closeModal('modal-research')">Tutup</button>
@@ -785,9 +754,7 @@
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: PASAR & PESAING (MARKET SHARE)
-       ======================================================== -->
+  <!-- MODAL: PASAR & PESAING -->
   <div class="modal-overlay" id="modal-market">
     <div class="modal-box">
       <div class="modal-header">
@@ -795,25 +762,20 @@
         <button class="modal-close" onclick="closeModal('modal-market')">&times;</button>
       </div>
       <div class="modal-body">
-        <!-- Target Kemenangan -->
         <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); padding: 12px 14px; border-radius: 10px;">
           <div style="font-size: 13px; font-weight:700; color: #34d399; margin-bottom: 4px;">
             🏆 Syarat Kemenangan Akhir:
           </div>
           <div style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
-            Capai <b>Era Sosial Media</b> dan raih peringkat <b>#1 Pangsa Pasar</b> selama <b>12 bulan berturut-turut</b>.
+            Capai <b>Era Sosial Media</b> dan pimpin peringkat <b>#1 Pangsa Pasar</b> selama <b>12 bulan berturut-turut</b>.
           </div>
           <div style="margin-top: 8px; font-size: 13px; font-weight: 700;">
             Status Kemenangan: <span id="market-win-tracker" style="color: var(--accent-gold);">0 / 12 Bulan</span>
           </div>
         </div>
 
-        <!-- Leaderboard Bars -->
-        <div id="market-competitors-list" style="margin-top: 6px;">
-          <!-- Rendered via JS -->
-        </div>
+        <div id="market-competitors-list" style="margin-top: 6px;"></div>
 
-        <!-- Synergy Info -->
         <div style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); padding: 12px; border-radius: 10px; font-size: 12px;">
           <div style="font-weight: 700; color:#93c5fd; margin-bottom: 4px;">🔗 Bonus Sinergi Lintas Media (Cross-Promotion):</div>
           <div id="synergy-status-text" style="color:#cbd5e1;">Memiliki beberapa tipe media sekaligus memberikan bonus audiens.</div>
@@ -825,33 +787,27 @@
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: EVENT BERITA ACAK
-       ======================================================== -->
+  <!-- MODAL: EVENT ACAK -->
   <div class="modal-overlay" id="modal-event">
     <div class="modal-box" style="max-width: 540px; border-color: rgba(245, 158, 11, 0.4);">
       <div class="modal-header" style="background: rgba(245, 158, 11, 0.1);">
         <div class="modal-title" style="color: #fbbf24;">⚡ Peristiwa Redaksi Mendesak!</div>
       </div>
       <div class="modal-body">
-        <div id="event-title" style="font-size: 18px; font-weight: 800; color: #fff;">
-          Skandal Korupsi Pejabat Tinggi
-        </div>
-        <div id="event-desc" style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
-          Wartawan kita menemukan dokumen rahasia keterlibatan walikota dalam suap proyek pelabuhan. Pihak balai kota mengancam gugatan hukum.
-        </div>
+        <div id="event-title" style="font-size: 18px; font-weight: 800; color: #fff;"></div>
+        <div id="event-desc" style="font-size: 13px; color: #cbd5e1; line-height: 1.5;"></div>
         
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
           <button class="action-btn" id="event-btn-a" style="justify-content: flex-start; text-align: left; padding: 12px; height: auto;">
             <div>
-              <div style="font-weight: 700; color:#fff;" id="event-opt-a-title">Opsi A: Bongkar Skandal!</div>
-              <div style="font-size: 11px; color: var(--text-muted);" id="event-opt-a-desc">+Reputasi, risiko biaya hukum</div>
+              <div style="font-weight: 700; color:#fff;" id="event-opt-a-title"></div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="event-opt-a-desc"></div>
             </div>
           </button>
           <button class="action-btn" id="event-btn-b" style="justify-content: flex-start; text-align: left; padding: 12px; height: auto;">
             <div>
-              <div style="font-weight: 700; color:#fff;" id="event-opt-b-title">Opsi B: Simpan demi Iklan Pemkot</div>
-              <div style="font-size: 11px; color: var(--text-muted);" id="event-opt-b-desc">+Uang cepat, -Reputasi jurnalisme</div>
+              <div style="font-weight: 700; color:#fff;" id="event-opt-b-title"></div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="event-opt-b-desc"></div>
             </div>
           </button>
         </div>
@@ -859,58 +815,42 @@
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: LAPORAN KEUANGAN BULANAN
-       ======================================================== -->
+  <!-- MODAL: LAPORAN FINANSIAL -->
   <div class="modal-overlay" id="modal-report">
     <div class="modal-box">
       <div class="modal-header">
         <div class="modal-title">📑 Laporan Keuangan Bulanan</div>
         <button class="modal-close" onclick="closeModal('modal-report')">&times;</button>
       </div>
-      <div class="modal-body" id="report-content">
-        <!-- Rendered via JS -->
-      </div>
+      <div class="modal-body" id="report-content"></div>
       <div class="modal-footer">
         <button class="action-btn primary" onclick="closeModal('modal-report')">Mengerti</button>
       </div>
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: PENJELASAN ERA
-       ======================================================== -->
+  <!-- MODAL: INFO ERA -->
   <div class="modal-overlay" id="modal-era-info">
     <div class="modal-box">
       <div class="modal-header">
         <div class="modal-title">⏳ Garis Waktu & Syarat Era Baru</div>
         <button class="modal-close" onclick="closeModal('modal-era-info')">&times;</button>
       </div>
-      <div class="modal-body" id="era-info-content">
-        <!-- Rendered via JS -->
-      </div>
+      <div class="modal-body" id="era-info-content"></div>
       <div class="modal-footer">
         <button class="action-btn" onclick="closeModal('modal-era-info')">Tutup</button>
       </div>
     </div>
   </div>
 
-  <!-- ========================================================
-       MODAL: GAME OVER / VICTORY
-       ======================================================== -->
+  <!-- MODAL: ENDGAME -->
   <div class="modal-overlay" id="modal-endgame">
     <div class="modal-box" style="text-align: center; max-width: 500px;">
       <div class="modal-body" style="padding: 30px 24px;">
         <div id="endgame-icon" style="font-size: 54px; margin-bottom: 12px;">🏆</div>
-        <div id="endgame-title" style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">
-          Kemenangan Mutlak!
-        </div>
-        <div id="endgame-desc" style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
-          Anda berhasil menguasai era sosial media dan menjadi raja media tak tertandingi!
-        </div>
-        <div id="endgame-stats" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 10px; margin-bottom: 20px; text-align: left; font-size: 13px;">
-          <!-- Stats Summary -->
-        </div>
+        <div id="endgame-title" style="font-size: 24px; font-weight: 800; margin-bottom: 8px;"></div>
+        <div id="endgame-desc" style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px;"></div>
+        <div id="endgame-stats" style="background: rgba(255,255,255,0.04); padding: 14px; border-radius: 10px; margin-bottom: 20px; text-align: left; font-size: 13px;"></div>
         <button class="action-btn primary" id="btn-endgame-restart" style="width: 100%; justify-content: center; padding: 12px;">
           Main Lagi dari Awal
         </button>
@@ -933,7 +873,7 @@ const CONFIG = {
   DAYS_PER_MONTH: 30,
 
   // Sumber Daya Awal
-  STARTING_CASH: 22000000, // Rp 22 Juta (cukup untuk unit koran + staf)
+  STARTING_CASH: 22000000, // Rp 22 Juta
   STARTING_REPUTATION: 50, // 0 - 100
 
   // Kamera
@@ -951,7 +891,7 @@ const CONFIG = {
     SPACING: 0.8,
   },
 
-  // Era Game (6 Era Bersejarah)
+  // 6 Era Bersejarah
   ERAS: [
     {
       id: 1,
@@ -1085,7 +1025,7 @@ const CONFIG = {
     }
   },
 
-  // Jenis Staf & Efeknya
+  // Staf Redaksi
   STAFF_TYPES: {
     wartawan: {
       name: "Wartawan / Penulis",
@@ -1327,7 +1267,9 @@ function loadGame() {
           staff: uData.staff || { wartawan: 1, editor: 0, kreator: 0, sales: 1 },
           mesh: null
         };
-        u.mesh = createBuildingMesh(u);
+        u.mesh = createBuilding(u.typeId, u.level, gameState.eraId, { gridX: u.gridX, gridZ: u.gridZ, unitId: u.id });
+        const pos = getGridWorldPosition(u.gridX, u.gridZ);
+        u.mesh.position.copy(pos);
         scene.add(u.mesh);
         gameState.units.push(u);
       });
@@ -1348,94 +1290,10 @@ function resetGame() {
 }
 
 // ==========================================
-// 3. THREE.JS PROCEDURAL ASSET GENERATOR TOOLKIT
-// (Diadaptasi dari standard threejs-asset-generator)
+// 3. THREE SETUP
 // ==========================================
-// Seeded PRNG deterministik (Mulberry32)
-function createRng(seed = 1) {
-  let s = Math.floor(seed) || 1;
-  return {
-    next() {
-      s |= 0; s = s + 0x6D2B79F5 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    },
-    range(a, b) { return a + this.next() * (b - a); },
-    int(a, b) { return Math.floor(this.range(a, b + 1)); },
-    pick(arr) { return arr[Math.floor(this.next() * arr.length)]; },
-    sign() { return this.next() < 0.5 ? -1 : 1; }
-  };
-}
-
-// Material Helpers (Low-Poly Flat Shading & Clean Palettes)
-function std(color = '#888888', params = {}) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.85,
-    metalness: 0,
-    flatShading: true,
-    ...params
-  });
-}
-
-function glow(color = '#ffd27a', intensity = 1.3, params = {}) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: intensity,
-    roughness: 0.5,
-    flatShading: true,
-    ...params
-  });
-}
-
-function tint(color, { h = 0, s = 0, l = 0 } = {}) {
-  return new THREE.Color(color).offsetHSL(h, s, l);
-}
-
-// Geometry Primitive Helpers
-const meshOf = (geo, mat, x = 0, y = 0, z = 0) => {
-  const m = new THREE.Mesh(geo, mat);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
-};
-
-const box = (w, h, d, mat, x, y, z) => meshOf(new THREE.BoxGeometry(w, h, d), mat, x, y, z);
-const cyl = (rTop, rBot, h, seg, mat, x, y, z) => meshOf(new THREE.CylinderGeometry(rTop, rBot, h, seg), mat, x, y, z);
-const cone = (r, h, seg, mat, x, y, z) => meshOf(new THREE.ConeGeometry(r, h, seg), mat, x, y, z);
-const sphere = (r, seg, mat, x, y, z) => meshOf(new THREE.SphereGeometry(r, seg, Math.max(3, Math.round(seg * 0.75))), mat, x, y, z);
-const ico = (r, detail, mat, x, y, z) => meshOf(new THREE.IcosahedronGeometry(r, detail), mat, x, y, z);
-
-// Jitter Vertices (Untuk estetika organik faceted khas low-poly)
-function jitter(geo, rng, amount = 0.08) {
-  const pos = geo.attributes.position;
-  const cache = new Map();
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const key = `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`;
-    let offset = cache.get(key);
-    if (!offset) {
-      offset = [(rng.next() - 0.5) * 2 * amount, (rng.next() - 0.5) * 2 * amount, (rng.next() - 0.5) * 2 * amount];
-      cache.set(key, offset);
-    }
-    pos.setXYZ(i, x + offset[0], y + offset[1], z + offset[2]);
-  }
-  pos.needsUpdate = true;
-  geo.computeVertexNormals();
-  geo.computeBoundingBox();
-  geo.computeBoundingSphere();
-  return geo;
-}
-
-// THREE SETUP
 let scene, camera, renderer, raycaster, mouse;
 let gridPlots = [];
-let animatedFoliage = [];
 let cameraTarget = new THREE.Vector3(0, 0, 0);
 let cameraZoom = CONFIG.CAMERA.INITIAL_ZOOM;
 let isDraggingCamera = false;
@@ -1517,25 +1375,24 @@ function onWindowResize() {
   renderer.setSize(width, height);
 }
 
-// Konstruksi Diorama Kota dengan Resep Asset Generator
+// Diorama Kota 6x6
 function buildCityDiorama() {
   const { SIZE, CELL_SIZE, SPACING } = CONFIG.GRID;
   const totalSpan = SIZE * CELL_SIZE + (SIZE - 1) * SPACING;
   const dioramaWidth = totalSpan + 6.0;
 
-  // 1. Foundation Slab (Batu Fondasi Berundak)
+  // 1. Foundation Slab (Bawah)
   const baseMat = std('#1e293b');
   const baseMesh = box(dioramaWidth, 1.8, dioramaWidth, baseMat, 0, -0.95, 0);
   scene.add(baseMesh);
 
-  // 2. Lapisan Tanah/Paving Permukaan
+  // 2. Lapisan Rumput / Paving Permukaan
   const grassMat = std('#234e34');
   const grassMesh = box(dioramaWidth + 0.3, 0.4, dioramaWidth + 0.3, grassMat, 0, -0.18, 0);
   scene.add(grassMesh);
 
-  // 3. Grid Kavling Tanah & Jalan Raya Miniatur
+  // 3. Grid Kavling Tanah & Jalan
   const halfSpan = totalSpan / 2 - (CELL_SIZE / 2);
-  const roadMat = std('#334155');
   const curbMat = std('#475569');
 
   for (let gx = 0; gx < SIZE; gx++) {
@@ -1543,7 +1400,6 @@ function buildCityDiorama() {
       const posX = (gx * (CELL_SIZE + SPACING)) - halfSpan;
       const posZ = (gz * (CELL_SIZE + SPACING)) - halfSpan;
 
-      // Slab Kavling Paving
       const plotGeo = new THREE.BoxGeometry(CELL_SIZE, 0.15, CELL_SIZE);
       const plotMat = std('#384c3c');
       const plotMesh = new THREE.Mesh(plotGeo, plotMat);
@@ -1551,7 +1407,6 @@ function buildCityDiorama() {
       plotMesh.receiveShadow = true;
       plotMesh.userData = { isPlot: true, gridX: gx, gridZ: gz };
 
-      // Curb / Pinggiran Paving
       const borderMesh = box(CELL_SIZE + 0.1, 0.05, CELL_SIZE + 0.1, curbMat, posX, 0.02, posZ);
       scene.add(borderMesh);
 
@@ -1560,86 +1415,23 @@ function buildCityDiorama() {
     }
   }
 
-  // 4. Dekorasi Lingkungan (Pohon Pinus Layered, Oak Tree, Batu Faceted)
-  addProceduralEnvironment(dioramaWidth);
+  // 4. Dekorasi Pohon & Lampu Tepi
+  addEnvironmentProps(dioramaWidth);
 }
 
-// Menambahkan Pohon & Batuan dengan Resep threejs-asset-generator
-function addProceduralEnvironment(dWidth) {
-  const rng = createRng(1234);
+function addEnvironmentProps(dWidth) {
   const half = dWidth / 2 - 1.2;
+  const trunkMat = std('#5c4033');
+  const foliageMat = std('#2f6b3a');
 
-  // Resep Pembuatan Pohon Pinus Layered (dari pine-tree.js)
-  function createProceduralPine(height = 3.5, foliageColor = '#2f6b3a') {
-    const treeGroup = new THREE.Group();
-    const trunkH = height * 0.25;
-    const trunk = cyl(height * 0.035, height * 0.05, trunkH, 6, std('#5c4033'), 0, trunkH / 2, 0);
-    treeGroup.add(trunk);
-
-    const layers = 3;
-    const foliageH = height - trunkH * 0.6;
-    const layerH = (foliageH / layers) * 1.5;
-    const crowns = [];
-
-    for (let i = 0; i < layers; i++) {
-      const t = i / (layers - 1);
-      const radius = THREE.MathUtils.lerp(height * 0.26, height * 0.1, t);
-      const y = trunkH * 0.6 + t * (foliageH - layerH) + layerH / 2;
-      const mat = std(tint(foliageColor, { l: (t - 0.5) * 0.1 }));
-
-      const crown = new THREE.Group();
-      crown.position.y = y;
-      crown.rotation.y = rng.range(0, Math.PI * 2);
-      const geo = jitter(new THREE.ConeGeometry(radius, layerH, 7, 1), rng, radius * 0.06);
-      crown.add(new THREE.Mesh(geo, mat));
-      treeGroup.add(crown);
-      crowns.push(crown);
-    }
-    treeGroup.userData.crowns = crowns;
-    animatedFoliage.push(crowns);
-    return treeGroup;
-  }
-
-  // Resep Batu Boulder Faceted (dari rock.js)
-  function createProceduralRock(scale = 1.0) {
-    const rockMat = std('#64748b');
-    const geo = new THREE.IcosahedronGeometry(scale, 1);
-    geo.scale(1.1, 0.75, 1.0);
-    jitter(geo, rng, scale * 0.15);
-    const m = meshOf(geo, rockMat, 0, scale * 0.55, 0);
-    return m;
-  }
-
-  // Tempatkan pohon dan batuan di sekeliling pinggiran pulau
-  const envSlots = [
-    [-half, -half, 'pine'], [half, -half, 'pine'], [-half, half, 'pine'], [half, half, 'pine'],
-    [-half, 0, 'rock'], [half, 0, 'rock'], [0, -half, 'pine'], [0, half, 'pine'],
-    [-half + 2.5, -half, 'pine'], [half - 2.5, -half, 'rock'],
-    [-half, half - 2.5, 'rock'], [half, half - 2.5, 'pine']
-  ];
-
-  envSlots.forEach(([x, z, type]) => {
-    if (type === 'pine') {
-      const pine = createProceduralPine(rng.range(3.0, 4.2), rng.pick(['#285e33', '#1e4b27', '#346d3c']));
-      pine.position.set(x, 0, z);
-      scene.add(pine);
-    } else {
-      const rock = createProceduralRock(rng.range(0.6, 1.0));
-      rock.position.set(x, 0, z);
-      scene.add(rock);
-    }
-  });
-
-  // Lampu Jalan Miniatur Klasik di Sudut
-  const lampPoleMat = std('#475569');
-  const lampGlowMat = glow('#fde047', 1.8);
-  [[-half + 1.2, -half + 1.2], [half - 1.2, half - 1.2]].forEach(([lx, lz]) => {
-    const lampGroup = new THREE.Group();
-    lampGroup.position.set(lx, 0, lz);
-    lampGroup.add(cyl(0.05, 0.08, 1.8, 6, lampPoleMat, 0, 0.9, 0));
-    lampGroup.add(box(0.3, 0.06, 0.06, lampPoleMat, 0.1, 1.8, 0));
-    lampGroup.add(sphere(0.12, 6, lampGlowMat, 0.22, 1.72, 0));
-    scene.add(lampGroup);
+  // Pohon Low-Poly di sudut
+  [[-half, -half], [half, -half], [-half, half], [half, half], [-half, 0], [half, 0], [0, -half], [0, half]].forEach(([x, z]) => {
+    const tree = new THREE.Group();
+    tree.position.set(x, 0, z);
+    tree.add(cyl(0.12, 0.16, 0.8, 6, trunkMat, 0, 0.4, 0));
+    tree.add(cone(0.65, 1.4, 7, foliageMat, 0, 1.3, 0));
+    tree.add(cone(0.48, 1.1, 7, std(tint('#2f6b3a', 0.06)), 0, 1.9, 0));
+    scene.add(tree);
   });
 }
 
@@ -1751,250 +1543,293 @@ function getGridWorldPosition(gx, gz) {
 }
 
 // ==========================================
-// 4. BUILDINGS (RESEP THREEJS-ASSET-GENERATOR)
+// 4. BUILDINGS (ASSET STYLE SYSTEM)
 // ==========================================
-function createBuildingMesh(unit) {
-  const group = new THREE.Group();
-  const pos = getGridWorldPosition(unit.gridX, unit.gridZ);
-  group.position.copy(pos);
+// Helper Inline Wajib
+function std(hex, params) { return new THREE.MeshStandardMaterial(Object.assign({ color: hex, roughness: 0.85, metalness: 0, flatShading: true }, params)); }
+function glow(hex, intensity) { return new THREE.MeshStandardMaterial({ color: hex, emissive: hex, emissiveIntensity: intensity || 1.2, roughness: 0.5, flatShading: true }); }
+function box(w,h,d,mat,x,y,z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat); m.position.set(x||0,y||0,z||0); m.castShadow = m.receiveShadow = true; return m; }
+function cyl(rt,rb,h,seg,mat,x,y,z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||6), mat); m.position.set(x||0,y||0,z||0); m.castShadow = m.receiveShadow = true; return m; }
+function cone(r,h,seg,mat,x,y,z) { const m = new THREE.Mesh(new THREE.ConeGeometry(r,h,seg||6), mat); m.position.set(x||0,y||0,z||0); m.castShadow = m.receiveShadow = true; return m; }
+function tint(hex, l) { const c = new THREE.Color(hex); const hsl = {}; c.getHSL(hsl); c.setHSL(hsl.h, hsl.s, Math.min(1, Math.max(0, hsl.l + l))); return '#' + c.getHexString(); }
+function seededRng(seed) { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return function() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
 
-  const baseScaleY = 1.0 + (unit.level - 1) * 0.22;
-  const stoneMat = std('#475569');
-  const frameMat = std('#1e293b');
-  const glassDayMat = std('#7dd3fc', { roughness: 0.2, metalness: 0.2 });
+// Factory Function Bangunan Sesuai Kontrak
+function createBuilding(type, level = 1, era = 1, opts = {}) {
+  const root = new THREE.Group();
+  const seed = (opts.gridX || 1) * 37 + (opts.gridZ || 1) * 19 + level * 13;
+  const rng = seededRng(seed);
 
-  switch (unit.typeId) {
+  // Palet Dasar (Maksimal 5 hue + 1 aksen, kontras nilai bawah gelap atas terang)
+  const baseStone = std(tint('#334155', -0.05));
+  const trimDark = std('#1e293b');
+  const heightMultiplier = 1.0 + (level - 1) * 0.22;
+
+  switch (type) {
     case 'newspaper': {
-      // 1. Percetakan Koran: Fondasi batu, dinding bata gabled, cerobong bertingkat
-      // Fondasi
-      group.add(box(2.5, 0.25, 2.5, stoneMat, 0, 0.125, 0));
-      // Badan Pabrik Bata Merah
-      const brickMat = std('#991b1b');
-      group.add(box(2.3, 1.5, 2.3, brickMat, 0, 0.95, 0));
+      // 1. Percetakan Koran: box gudang + atap pelana segitiga + cyl cerobong ('chimney') + asap ('smoke')
+      const brick = std(tint('#991b1b', (rng() - 0.5) * 0.04));
+      const roofMat = std(tint('#3f3f46', 0.05));
 
-      // Atap Gabled Saw-Tooth Industri
-      const roofProf = new THREE.Shape();
-      roofProf.moveTo(-1.25, 0);
-      roofProf.lineTo(1.25, 0);
-      roofProf.lineTo(0, 0.7);
-      roofProf.closePath();
-      const roofGeo = new THREE.ExtrudeGeometry(roofProf, { depth: 2.4, bevelEnabled: false });
-      roofGeo.translate(0, 0, -1.2);
-      const roofMat = std('#334155');
-      group.add(meshOf(roofGeo, roofMat, 0, 1.7, 0));
+      // Fondasi & Badan Gudang
+      root.add(box(2.4, 0.2, 2.4, baseStone, 0, 0.1, 0));
+      const bodyH = 1.3 * heightMultiplier;
+      root.add(box(2.2, bodyH, 2.2, brick, 0, 0.2 + bodyH / 2, 0));
 
-      // Cerobong Asap Bata dengan Trim Cincin
-      const chimneyMat = std('#782f25');
-      group.add(cyl(0.22, 0.28, 2.2, 7, chimneyMat, 0.65, 1.9, 0.65));
-      group.add(cyl(0.26, 0.26, 0.15, 7, stoneMat, 0.65, 2.95, 0.65));
+      // Atap Pelana Sederhana (Dua box miring)
+      const roofL = box(1.3, 0.12, 2.3, roofMat, -0.5, 0.2 + bodyH + 0.35, 0);
+      roofL.rotation.z = Math.PI / 6;
+      const roofR = box(1.3, 0.12, 2.3, roofMat, 0.5, 0.2 + bodyH + 0.35, 0);
+      roofR.rotation.z = -Math.PI / 6;
+      root.add(roofL);
+      root.add(roofR);
 
-      // Loading Bay / Pintu Masuk Pengiriman & Tumpukan Koran
-      group.add(box(0.8, 1.1, 0.1, frameMat, -0.4, 0.7, 1.16));
-      group.add(box(0.5, 0.35, 0.4, std('#fef08a'), 0.5, 0.3, 1.2)); // Palet kertas
+      // Cerobong tipis tinggi di atap (nama: 'chimney')
+      const chimneyH = 1.4 + level * 0.2;
+      const chimney = cyl(0.18, 0.22, chimneyH, 6, std('#782f25'), 0.65, 0.2 + bodyH + chimneyH / 2, 0.65);
+      chimney.name = 'chimney';
+      root.add(chimney);
 
-      // Partikel Asap Terpadu
+      // Asap melayang (nama: 'smoke')
       const smokeGroup = new THREE.Group();
-      smokeGroup.position.set(0.65, 3.1, 0.65);
-      const smokePuffs = [];
+      smokeGroup.name = 'smoke';
+      smokeGroup.position.set(0.65, 0.2 + bodyH + chimneyH + 0.2, 0.65);
+      const smokeMat = std('#e2e8f0', { transparent: true, opacity: 0.6 });
       for (let i = 0; i < 3; i++) {
-        const puffMat = std('#e2e8f0', { transparent: true, opacity: 0.65 });
-        const puff = sphere(0.18 + i * 0.05, 5, puffMat, 0, i * 0.38, 0);
+        const puff = box(0.24 + i * 0.05, 0.24 + i * 0.05, 0.24 + i * 0.05, smokeMat, 0, i * 0.35, 0);
+        puff.userData = { offset: i * 0.35 };
         smokeGroup.add(puff);
-        smokePuffs.push(puff);
       }
-      group.add(smokeGroup);
-      group.userData.smokePuffs = smokePuffs;
+      root.add(smokeGroup);
+
+      // Pintu depan (+Z) & palet koran
+      root.add(box(0.7, 0.9, 0.08, trimDark, -0.4, 0.65, 1.14));
+      root.add(box(0.5, 0.3, 0.4, std('#fef08a'), 0.5, 0.35, 1.15));
       break;
     }
 
     case 'magazine': {
-      // 2. Penerbit Majalah: Kantor Art-Deco Bertingkat, Strip Kaca, Billboard
-      group.add(box(2.4, 0.25, 2.4, stoneMat, 0, 0.125, 0));
-      // Tingkat 1
-      const officeMat = std('#f8fafc');
-      group.add(box(2.2, 1.3, 2.2, officeMat, 0, 0.85, 0));
-      // Tingkat 2 (Sedikit Menjorok Masuk)
-      group.add(box(1.9, 1.1, 1.9, officeMat, 0, 2.05, 0));
+      // 2. Kantor Majalah: box bertingkat (1-3 lantai) + grid jendela + papan nama atap
+      const wallColor = tint('#f8fafc', (rng() - 0.5) * 0.03);
+      const wallMat = std(wallColor);
+      const glassMat = std('#38bdf8', { roughness: 0.2, metalness: 0.2 });
+      const signMat = std('#f43f5e');
 
-      // Jendela Kaca Horizontal
-      group.add(box(1.8, 0.45, 2.25, glassDayMat, 0, 0.95, 0));
-      group.add(box(1.5, 0.4, 1.95, glassDayMat, 0, 2.1, 0));
+      const floors = Math.min(3, Math.max(1, Math.floor(1 + level * 0.5)));
+      let curY = 0.2;
+      root.add(box(2.4, 0.2, 2.4, baseStone, 0, 0.1, 0));
 
-      // Kanopi Pintu Masuk
-      const canopyMat = std('#f43f5e');
-      group.add(box(1.0, 0.1, 0.5, canopyMat, 0, 0.6, 1.35));
+      for (let f = 0; f < floors; f++) {
+        const fH = 0.95;
+        const inset = f * 0.15;
+        const w = 2.2 - inset;
+        root.add(box(w, fH, w, wallMat, 0, curY + fH / 2, 0));
+        // Grid Jendela (box kaca kecil menempel ke dinding depan)
+        root.add(box(w * 0.75, 0.35, 0.06, glassMat, 0, curY + fH / 2, (w / 2) + 0.03));
+        curY += fH;
+      }
 
-      // Billboard Majalah di Atap
-      const boardGroup = new THREE.Group();
-      boardGroup.position.set(0, 2.9, 0);
-      boardGroup.add(box(1.5, 0.8, 0.12, std('#ec4899'), 0, 0, 0));
-      boardGroup.add(box(1.6, 0.08, 0.14, frameMat, 0, 0.4, 0));
-      group.add(boardGroup);
+      // Papan Nama Berwarna Solid di Atap
+      const signBoard = box(1.5, 0.6, 0.12, signMat, 0, curY + 0.35, 0);
+      root.add(signBoard);
+      root.add(box(1.6, 0.06, 0.14, trimDark, 0, curY + 0.65, 0));
+      // Pintu depan (+Z)
+      root.add(box(0.7, 0.85, 0.08, trimDark, 0, 0.62, 1.13));
       break;
     }
 
     case 'radio': {
-      // 3. Stasiun Radio: Bunker Penyiaran, Tiang Menara Transmisi Kisi-Kisi, Beacon Merah
-      group.add(box(2.3, 0.3, 2.3, stoneMat, 0, 0.15, 0));
+      // 3. Menara Radio: cyl tiang tinggi tipis (6-8 seg) + box crossbar menyilang + sphere beacon ('beacon')
       const bunkerMat = std('#475569');
-      group.add(box(2.1, 1.0, 2.1, bunkerMat, 0, 0.75, 0));
-
-      // Pintu Kedap Suara & Ventilasi
-      group.add(box(0.7, 0.85, 0.08, frameMat, 0, 0.65, 1.06));
-      group.add(box(0.6, 0.25, 0.08, std('#334155'), -0.6, 0.9, 1.06));
-
-      // Tiang Kisi-kisi Antena Pemancar (Mast Bertingkat)
-      const towerGroup = new THREE.Group();
-      towerGroup.position.set(0, 1.25, 0);
-      const steelMat = std('#94a3b8', { metalness: 0.4, roughness: 0.5 });
-      towerGroup.add(cyl(0.08, 0.35, 4.4, 6, steelMat, 0, 2.2, 0));
-      // Crossbars Antena
-      towerGroup.add(cyl(0.35, 0.35, 0.06, 6, steelMat, 0, 1.6, 0));
-      towerGroup.add(cyl(0.24, 0.24, 0.05, 6, steelMat, 0, 2.8, 0));
-      towerGroup.add(cyl(0.14, 0.14, 0.04, 6, steelMat, 0, 3.8, 0));
-
-      // Lampu Suar Merah Berkedip
+      const steelMat = std('#94a3b8', { metalness: 0.4, roughness: 0.4 });
       const beaconMat = glow('#ef4444', 1.8);
-      const beaconMesh = sphere(0.18, 6, beaconMat, 0, 4.5, 0);
-      towerGroup.add(beaconMesh);
-      group.add(towerGroup);
-      group.userData.beacon = beaconMesh;
+
+      // Bunker dasar
+      root.add(box(2.2, 0.8, 2.2, bunkerMat, 0, 0.4, 0));
+      root.add(box(0.65, 0.7, 0.08, trimDark, 0, 0.45, 1.14));
+
+      // Tiang tinggi tipis
+      const towerH = 4.2 + (level - 1) * 0.5;
+      const mast = cyl(0.06, 0.28, towerH, 6, steelMat, 0, 0.8 + towerH / 2, 0);
+      mast.name = 'antenna';
+      root.add(mast);
+
+      // Crossbars horizontal menyilang
+      const tiers = 3;
+      for (let i = 1; i <= tiers; i++) {
+        const barY = 0.8 + (towerH * (i / (tiers + 1)));
+        const span = 0.7 - i * 0.12;
+        root.add(box(span, 0.05, 0.05, steelMat, 0, barY, 0));
+        root.add(box(0.05, 0.05, span, steelMat, 0, barY, 0));
+      }
+
+      // Sphere beacon di puncak (nama: 'beacon')
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), beaconMat);
+      beacon.position.set(0, 0.8 + towerH + 0.1, 0);
+      beacon.name = 'beacon';
+      beacon.castShadow = true;
+      root.add(beacon);
       break;
     }
 
     case 'tv': {
-      // 4. Channel TV: Studio Soundstage Lengkung, Parabola Berputar, OB Van Parkir
-      group.add(box(2.6, 0.25, 2.4, stoneMat, 0, 0.125, 0));
+      // 4. Studio TV: box studio + panel dinding + piringan parabola setengah sphere ('dish')
       const studioMat = std('#334155');
-      group.add(box(2.4, 1.6, 2.2, studioMat, 0, 0.95, 0));
+      const panelMat = std('#0284c7');
+      const dishMat = std('#f8fafc', { roughness: 0.3 });
 
-      // Atap Lengkung Studio
-      const archProf = new THREE.Shape();
-      archProf.absarc(0, 0, 1.2, 0, Math.PI, false);
-      const archGeo = new THREE.ExtrudeGeometry(archProf, { depth: 2.2, bevelEnabled: false });
-      archGeo.translate(0, 0, -1.1);
-      const archMat = std('#0284c7');
-      const archMesh = meshOf(archGeo, archMat, 0, 1.75, 0);
-      archMesh.scale.set(0.95, 0.45, 1.0);
-      group.add(archMesh);
+      // Box studio
+      const bH = 1.6 * heightMultiplier;
+      root.add(box(2.4, 0.2, 2.3, baseStone, 0, 0.1, 0));
+      root.add(box(2.3, bH, 2.1, studioMat, 0, 0.2 + bH / 2, 0));
+      // Panel aksen dinding
+      root.add(box(1.8, bH * 0.6, 0.08, panelMat, 0, 0.2 + bH / 2, 1.08));
 
-      // Antena Parabola Satelit Berputar
-      const dishMount = new THREE.Group();
-      dishMount.position.set(0.65, 2.3, 0.4);
-      dishMount.add(cyl(0.06, 0.06, 0.5, 4, std('#64748b'), 0, 0.25, 0));
-      const dishDish = meshOf(new THREE.ConeGeometry(0.55, 0.25, 8), std('#f8fafc', { roughness: 0.4 }), 0, 0.55, 0);
-      dishDish.rotation.x = Math.PI / 3;
-      dishMount.add(dishDish);
-      group.add(dishMount);
-      group.userData.dish = dishMount;
+      // Tiang tiang penyangga piringan parabola
+      const mountY = 0.2 + bH;
+      root.add(cyl(0.06, 0.06, 0.5, 6, std('#64748b'), 0.6, mountY + 0.25, 0.4));
 
-      // Miniature OB Van TV Parkir di Luar
-      const vanGroup = new THREE.Group();
-      vanGroup.position.set(-0.6, 0.3, 1.35);
-      vanGroup.add(box(0.55, 0.4, 0.9, std('#2563eb'), 0, 0.2, 0));
-      vanGroup.add(box(0.48, 0.25, 0.35, std('#1d4ed8'), 0, 0.35, 0.2));
-      group.add(vanGroup);
+      // Piringan parabola dari separuh SphereGeometry (phiLength/thetaLength)
+      const dishGroup = new THREE.Group();
+      dishGroup.name = 'dish';
+      dishGroup.position.set(0.6, mountY + 0.5, 0.4);
+
+      // Setengah bola (thetaLength = PI/2)
+      const halfSphereGeo = new THREE.SphereGeometry(0.5, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+      const dishMesh = new THREE.Mesh(halfSphereGeo, dishMat);
+      dishMesh.rotation.x = Math.PI / 3;
+      dishMesh.castShadow = true;
+      dishGroup.add(dishMesh);
+      // Batang antena tengah parabola
+      dishGroup.add(cyl(0.02, 0.02, 0.35, 4, std('#94a3b8'), 0, 0.2, 0.2));
+
+      root.add(dishGroup);
       break;
     }
 
     case 'online': {
-      // 5. Kanal Video Online: Studio Loft Modern, Tombol Play Merah, Ring Light Raksasa
-      group.add(box(2.5, 0.25, 2.5, stoneMat, 0, 0.125, 0));
-      const loftMat = std('#1e293b');
-      group.add(box(2.3, 1.9, 2.3, loftMat, 0, 1.1, 0));
-
-      // Facade Kaca Modern
-      group.add(box(1.7, 1.4, 2.35, glassDayMat, 0, 1.15, 0));
-
-      // Logo Play Button Merah Bold
-      const playMat = std('#ef4444');
-      const playMesh = cone(0.35, 0.45, 3, playMat, 0, 1.25, 1.22);
-      playMesh.rotation.z = -Math.PI / 2;
-      group.add(playMesh);
-
-      // Ring Light Raksasa di Atap (Berputar halus)
+      // 5. Kantor Kreator: bangunan modern kecil + TorusGeometry ring light ('ring-light')
+      const darkMat = std('#1e293b');
+      const glassMat = std('#38bdf8', { roughness: 0.2 });
       const ringMat = glow('#facc15', 1.6);
-      const ringMesh = meshOf(new THREE.TorusGeometry(0.65, 0.09, 6, 12), ringMat, 0, 2.8, 0);
-      ringMesh.rotation.x = Math.PI / 4;
-      group.add(ringMesh);
-      group.userData.ringLight = ringMesh;
+
+      const oH = 1.8 * heightMultiplier;
+      root.add(box(2.4, 0.2, 2.4, baseStone, 0, 0.1, 0));
+      root.add(box(2.2, oH, 2.2, darkMat, 0, 0.2 + oH / 2, 0));
+      root.add(box(1.6, oH * 0.7, 0.06, glassMat, 0, 0.2 + oH * 0.45, 1.13));
+
+      // TorusGeometry ring light di muka bangunan (+Z)
+      const ringGeo = new THREE.TorusGeometry(0.5, 0.08, 6, 12);
+      const ringLight = new THREE.Mesh(ringGeo, ringMat);
+      ringLight.name = 'ring-light';
+      ringLight.position.set(0, 0.2 + oH * 0.65, 1.2);
+      root.add(ringLight);
+
+      // Play button merah di atas
+      const playIcon = cone(0.28, 0.35, 3, std('#ef4444'), 0, 0.2 + oH + 0.3, 0);
+      playIcon.rotation.z = -Math.PI / 2;
+      root.add(playIcon);
       break;
     }
 
     case 'social': {
-      // 6. Konglomerasi Medsos: Skyscraper Hexagonal/Faceted, Garis Neon, Kristal Data Melayang
-      group.add(box(2.4, 0.25, 2.4, stoneMat, 0, 0.125, 0));
-      const towerMat = std('#0f172a');
-      group.add(box(2.0, 3.6, 2.0, towerMat, 0, 1.9, 0));
+      // 6. Gedung Media Sosial: box kaca modern (roughness rendah) + strip neon emissive ('neon-sign')
+      const glassTowerMat = std('#0f172a', { roughness: 0.15, metalness: 0.3 });
+      const neonMat = glow('#d946ef', 1.8);
 
-      // Garis Neon Glowing Cyberpunk Vertikal
-      const neonMatA = glow('#d946ef', 1.5);
-      const neonMatB = glow('#06b6d4', 1.5);
-      group.add(box(0.1, 3.65, 2.05, neonMatA, 0.7, 1.9, 0));
-      group.add(box(2.05, 3.65, 0.1, neonMatB, 0, 1.9, 0.7));
+      const sH = 3.4 * heightMultiplier;
+      root.add(box(2.4, 0.2, 2.4, baseStone, 0, 0.1, 0));
+      root.add(box(2.0, sH, 2.0, glassTowerMat, 0, 0.2 + sH / 2, 0));
 
-      // Jarum Spire Transmisi
-      const spireMat = std('#94a3b8', { metalness: 0.5 });
-      group.add(cyl(0.04, 0.14, 1.5, 5, spireMat, 0, 4.4, 0));
+      // Strip neon tipis emissive di tepi fasad (nama: 'neon-sign')
+      const neonLeft = box(0.08, sH, 0.08, neonMat, -0.96, 0.2 + sH / 2, 1.02);
+      neonLeft.name = 'neon-sign';
+      const neonRight = box(0.08, sH, 0.08, neonMat, 0.96, 0.2 + sH / 2, 1.02);
+      neonRight.name = 'neon-sign';
+      root.add(neonLeft);
+      root.add(neonRight);
 
-      // Kristal Data Octahedron Melayang
-      const gemMat = glow('#06b6d4', 1.8);
-      const gemMesh = meshOf(new THREE.OctahedronGeometry(0.28), gemMat, 0, 5.35, 0);
-      group.add(gemMesh);
-      group.userData.gem = gemMesh;
+      // Spire tipis di atap
+      root.add(cyl(0.03, 0.1, 1.2, 5, std('#94a3b8'), 0, 0.2 + sH + 0.6, 0));
+      const topGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), glow('#06b6d4', 2.0));
+      topGem.position.set(0, 0.2 + sH + 1.3, 0);
+      topGem.name = 'top-gem';
+      root.add(topGem);
       break;
     }
   }
 
-  group.scale.y = baseScaleY;
-  return group;
+  return root;
 }
 
-// Update Micro-animasi bangunan & lingkungan tiap frame
-function updateBuildingAnimations(clockTime) {
-  // 1. Animasi Pohon Pinus (Goyangan Angin Alami - resep pine-tree.js)
-  animatedFoliage.forEach((crowns, treeIdx) => {
-    crowns.forEach((c, i) => {
-      const k = (i + 1) / crowns.length;
-      c.rotation.z = Math.sin(clockTime * 1.4 + treeIdx + i * 0.5) * 0.02 * k;
-      c.rotation.x = Math.cos(clockTime * 1.1 + treeIdx + i * 0.3) * 0.015 * k;
-    });
-  });
+// Efek Pendapatan "+$" Melayang Tunggal
+function spawnFloatingText(amount, worldPos, color = '#10b981') {
+  if (!worldPos) return;
+  const v = worldPos.clone();
+  v.y += 3.2;
+  v.project(camera);
 
-  // 2. Animasi Bangunan Media
+  if (v.z > 1) return;
+
+  const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-(v.y * 0.5) + 0.5) * window.innerHeight;
+
+  const el = document.createElement('div');
+  el.className = 'floating-money';
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  el.style.color = color;
+  el.textContent = typeof amount === 'number' ? "+" + formatRupiah(amount) : amount;
+
+  document.getElementById('floating-container').appendChild(el);
+  setTimeout(() => {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  }, 1600);
+}
+
+// Update Animasi Bangunan Berdasarkan Nama Child Object
+function updateBuildingAnimations(clockTime) {
   gameState.units.forEach(unit => {
     if (!unit.mesh) return;
 
-    // Asap cerobong koran
-    if (unit.mesh.userData.smokePuffs) {
-      unit.mesh.userData.smokePuffs.forEach((puff, idx) => {
-        puff.position.y = ((clockTime * 0.8 + idx * 0.4) % 1.2);
+    // 1. Asap cerobong koran ('smoke')
+    const smokeGroup = unit.mesh.getObjectByName('smoke');
+    if (smokeGroup) {
+      smokeGroup.children.forEach((puff, idx) => {
+        puff.position.y = ((clockTime * 0.75 + puff.userData.offset) % 1.2);
         puff.scale.setScalar(0.7 + puff.position.y * 0.8);
-        puff.material.opacity = Math.max(0, 0.8 - puff.position.y * 0.6);
+        puff.material.opacity = Math.max(0, 0.7 - puff.position.y * 0.55);
       });
     }
 
-    // Beacon radio berkedip
-    if (unit.mesh.userData.beacon) {
-      const blink = Math.sin(clockTime * 7) > 0 ? 1 : 0.2;
-      unit.mesh.userData.beacon.material.opacity = blink;
+    // 2. Beacon radio berkedip ('beacon')
+    const beacon = unit.mesh.getObjectByName('beacon');
+    if (beacon && beacon.material) {
+      beacon.material.emissiveIntensity = 0.4 + (Math.sin(clockTime * 7) > 0 ? 1.6 : 0);
     }
 
-    // Parabola TV berotasi perlahan
-    if (unit.mesh.userData.dish) {
-      unit.mesh.userData.dish.rotation.y = clockTime * 0.4;
+    // 3. Parabola TV berputar ('dish')
+    const dish = unit.mesh.getObjectByName('dish');
+    if (dish) {
+      dish.rotation.y = clockTime * 0.4;
     }
 
-    // Ring light kreator berdenyut
-    if (unit.mesh.userData.ringLight) {
-      unit.mesh.userData.ringLight.rotation.z = clockTime * 0.6;
+    // 4. Ring light berdenyut ('ring-light')
+    const ringLight = unit.mesh.getObjectByName('ring-light');
+    if (ringLight && ringLight.material) {
+      ringLight.material.emissiveIntensity = 1.0 + Math.sin(clockTime * 3.5) * 0.7;
     }
 
-    // Permata medsos melayang dan berputar
-    if (unit.mesh.userData.gem) {
-      unit.mesh.userData.gem.rotation.y = clockTime * 1.5;
-      unit.mesh.userData.gem.position.y = 5.35 + Math.sin(clockTime * 3) * 0.15;
-    }
+    // 5. Neon Medsos bersiklus warna ('neon-sign')
+    unit.mesh.traverse(child => {
+      if (child.name === 'neon-sign' && child.material) {
+        const hue = (0.8 + Math.sin(clockTime * 0.8) * 0.15) % 1.0;
+        child.material.emissive.setHSL(hue, 0.9, 0.5);
+      }
+      if (child.name === 'top-gem') {
+        child.rotation.y = clockTime * 1.5;
+      }
+    });
   });
 }
 
@@ -2118,7 +1953,7 @@ function processMonthlyEconomy() {
     const profitUnit = unitGrossRevenue - unitOpCost - staffSalaries;
     if (profitUnit > 0) {
       const worldPos = getGridWorldPosition(unit.gridX, unit.gridZ);
-      showFloatingMoney("+" + formatRupiah(profitUnit), worldPos);
+      spawnFloatingText(profitUnit, worldPos);
     }
   });
 
@@ -2221,7 +2056,9 @@ function buildUnit(typeId, gridX, gridZ) {
     mesh: null
   };
 
-  unit.mesh = createBuildingMesh(unit);
+  unit.mesh = createBuilding(unit.typeId, unit.level, gameState.eraId, { gridX, gridZ, unitId: unit.id });
+  const pos = getGridWorldPosition(gridX, gridZ);
+  unit.mesh.position.copy(pos);
   scene.add(unit.mesh);
   gameState.units.push(unit);
 
@@ -2250,7 +2087,9 @@ function upgradeUnit(unit) {
   unit.audience = Math.round(unit.audience * 1.35);
 
   if (unit.mesh) scene.remove(unit.mesh);
-  unit.mesh = createBuildingMesh(unit);
+  unit.mesh = createBuilding(unit.typeId, unit.level, gameState.eraId, { gridX: unit.gridX, gridZ: unit.gridZ, unitId: unit.id });
+  const pos = getGridWorldPosition(unit.gridX, unit.gridZ);
+  unit.mesh.position.copy(pos);
   scene.add(unit.mesh);
 
   showToast(`${unit.name} naik ke Level ${unit.level}!`, 'success');
@@ -2971,29 +2810,6 @@ function showToast(msg, type = 'info') {
   }, 3500);
 }
 
-function showFloatingMoney(text, worldPos) {
-  const v = worldPos.clone();
-  v.y += 3.2;
-  v.project(camera);
-
-  if (v.z > 1) return;
-
-  const x = (v.x * 0.5 + 0.5) * window.innerWidth;
-  const y = (-(v.y * 0.5) + 0.5) * window.innerHeight;
-
-  const el = document.createElement('div');
-  el.className = 'floating-money';
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
-  el.style.color = '#10b981';
-  el.textContent = text;
-
-  document.getElementById('floating-container').appendChild(el);
-  setTimeout(() => {
-    if (el.parentNode) el.parentNode.removeChild(el);
-  }, 1600);
-}
-
 function setupSliderHandlers() {
   const sQ = document.getElementById('slider-quality');
   const sK = document.getElementById('slider-quantity');
@@ -3095,7 +2911,9 @@ window.addEventListener('DOMContentLoaded', () => {
       staff: { wartawan: 1, editor: 0, kreator: 0, sales: 1 },
       mesh: null
     };
-    initUnit.mesh = createBuildingMesh(initUnit);
+    initUnit.mesh = createBuilding(initUnit.typeId, initUnit.level, gameState.eraId, { gridX: 2, gridZ: 2, unitId: initUnit.id });
+    const pos = getGridWorldPosition(2, 2);
+    initUnit.mesh.position.copy(pos);
     scene.add(initUnit.mesh);
     gameState.units.push(initUnit);
     saveGame();
