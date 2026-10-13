@@ -7,8 +7,10 @@ import { PostProcessingManager } from './world/PostProcessing.js';
 import { BuildingManager } from './map/BuildingManager.js';
 import { CameraControls } from './controls/CameraControls.js';
 import { VFXManager } from './vfx/VFX.js';
+import { TimeEngine } from './systems/timeEngine.js';
 import { EconomySystem } from './systems/economy.js';
 import { UnitManager } from './systems/unitManager.js';
+import { StaffManager } from './systems/staffManager.js';
 import { EventSystem } from './systems/eventSystem.js';
 import { CompetitorAISystem } from './systems/competitorAI.js';
 import { ResearchTreeSystem } from './systems/researchTree.js';
@@ -20,7 +22,6 @@ class GameApp {
   constructor() {
     this.container = document.getElementById('canvas-container');
     this.clock = new THREE.Clock();
-    this.accumulatedTime = 0;
     this.lastUiUpdate = 0;
 
     this.initThree();
@@ -68,14 +69,65 @@ class GameApp {
     this.vfx = new VFXManager(this.scene);
     this.postProcessing = new PostProcessingManager(this.renderer, this.scene, this.camera);
 
-    // Gameplay Systems
-    this.economy = new EconomySystem(this.vfx, this.buildingManager);
-    this.unitManager = new UnitManager(this.buildingManager, this.vfx);
+    // Time Engine & Ramp-Up Handler
+    this.timeEngine = new TimeEngine();
+    this.timeEngine.onRampUpComplete = (unit) => {
+      const mesh = this.world.plotMeshes[unit.plotId];
+      const coords = mesh
+        ? { worldX: mesh.userData.worldX, worldZ: mesh.userData.worldZ }
+        : { worldX: 0, worldZ: 0 };
+      this.buildingManager.spawnBuilding(unit.plotId, unit.type, unit.level, coords);
+      if (mesh) {
+        this.vfx.spawnFloatingText('OPERASIONAL!', mesh.position, 'rep');
+      }
+      saveGame();
+    };
+
+    // Economy System
+    this.economy = new EconomySystem({
+      onFloatingText: (amount, plotId, type) => {
+        const mesh = this.world.plotMeshes[plotId];
+        const pos = mesh ? mesh.position : { x: 0, y: 0, z: 0 };
+        this.vfx.spawnFloatingText(amount, pos, type);
+      },
+    });
+
+    // Unit Manager
+    this.unitManager = new UnitManager({
+      onSpawnVisual: (plotId, buildingAssetId, level, isOperational) => {
+        const mesh = this.world.plotMeshes[plotId];
+        const coords = mesh
+          ? { worldX: mesh.userData.worldX, worldZ: mesh.userData.worldZ }
+          : { worldX: 0, worldZ: 0 };
+        if (isOperational) {
+          this.buildingManager.spawnBuilding(plotId, buildingAssetId, level, coords);
+        } else {
+          this.buildingManager.spawnScaffolding(plotId, coords);
+        }
+      },
+      onRemoveVisual: (plotId) => {
+        this.buildingManager.removeBuilding(plotId);
+      },
+      onFloatingText: (text, plotId, type) => {
+        const mesh = this.world.plotMeshes[plotId];
+        const pos = mesh ? mesh.position : { x: 0, y: 0, z: 0 };
+        this.vfx.spawnFloatingText(text, pos, type);
+      },
+    });
+
+    // Bundel sistem untuk mesin waktu
+    this.systems = {
+      economy: this.economy,
+      research: ResearchTreeSystem,
+      events: EventSystem,
+      competitors: CompetitorAISystem,
+      winLose: WinLoseChecker,
+    };
 
     // UI Manager
     this.ui = new UIManager({
       onBuild: (plotId, buildingAssetId) => {
-        const res = this.unitManager.buildUnit(plotId, buildingAssetId, gameState, this.world);
+        const res = this.unitManager.buildUnit(plotId, buildingAssetId, gameState);
         if (res.success) {
           this.world.setSelectedPlot(plotId);
           this.ui.update(gameState);
@@ -85,7 +137,7 @@ class GameApp {
         }
       },
       onUpgrade: (unitId) => {
-        const res = this.unitManager.upgradeUnit(unitId, gameState, this.world);
+        const res = this.unitManager.upgradeUnit(unitId, gameState);
         if (res.success) {
           this.ui.update(gameState);
           saveGame();
@@ -104,12 +156,20 @@ class GameApp {
       onBudgetChange: (unitId, budget) => {
         this.unitManager.setBudgetAllocation(unitId, budget, gameState);
       },
+      onSegmentChange: (unitId, segmentKey) => {
+        this.unitManager.setSegment(unitId, segmentKey, gameState);
+        this.ui.update(gameState);
+        saveGame();
+      },
       onSpeedChange: (speed) => {
         gameState.speed = speed;
       },
       onEraAdvance: (targetEraIndex) => {
-        const res = EraManager.advanceEra(targetEraIndex, gameState, this.world);
+        const res = EraManager.advanceEra(targetEraIndex, gameState, (idx) => {
+          this.world.applyEraColors(idx, true);
+        });
         if (res.success) {
+          this.ui.showEraTransition(res.era);
           this.ui.update(gameState);
           saveGame();
         } else {
@@ -136,6 +196,10 @@ class GameApp {
         this.world.applyEraColors(0, false);
         this.world.setSelectedPlot(null);
         this.ui.update(gameState);
+      },
+      onOnboardingComplete: () => {
+        gameState.isFirstTimeOnboarding = false;
+        saveGame();
       },
     });
 
@@ -214,7 +278,11 @@ class GameApp {
         const coords = hitMesh
           ? { worldX: hitMesh.userData.worldX, worldZ: hitMesh.userData.worldZ }
           : { worldX: 0, worldZ: 0 };
-        this.buildingManager.spawnBuilding(unit.plotId, unit.type, unit.level, coords);
+        if (unit.isOperational) {
+          this.buildingManager.spawnBuilding(unit.plotId, unit.type, unit.level, coords);
+        } else {
+          this.buildingManager.spawnScaffolding(unit.plotId, coords);
+        }
       }
     }
 
@@ -230,13 +298,7 @@ class GameApp {
 
     // 1. Loop Simulasi Waktu Game (hanya jika speed > 0 dan belum tamat)
     if (gameState.speed > 0 && gameState.gameStatus === 'playing') {
-      this.accumulatedTime += dt * gameState.speed;
-      const dayInterval = CONFIG.TICK_SECONDS;
-
-      while (this.accumulatedTime >= dayInterval) {
-        this.accumulatedTime -= dayInterval;
-        this.simulateDay();
-      }
+      this.timeEngine.update(dt, gameState, this.systems);
     }
 
     // 2. Update Subsystems
@@ -244,6 +306,11 @@ class GameApp {
     this.buildingManager.update(elapsedTime, dt);
     this.vfx.update(dt);
     this.postProcessing.update(gameState.currentEraIndex, gameState.qualityTier);
+
+    // Update efek visual bahaya vignette (amber jika runway < 3 bulan, red jika saldo minus)
+    const isCriticalRunway = gameState.runwayMonths < CONFIG.RUNWAY_WARNING_THRESHOLD;
+    const isNegativeCash = gameState.money < 0;
+    this.vfx.setDangerVignette(isCriticalRunway, isNegativeCash);
 
     // 3. Update UI secara berkala (sekitar 10 fps agar ringan & responsif)
     if (elapsedTime - this.lastUiUpdate > 0.1) {
@@ -253,46 +320,6 @@ class GameApp {
 
     // 4. Render 3D Scene
     this.postProcessing.render();
-  }
-
-  simulateDay() {
-    gameState.day += 1;
-
-    // 1. Ekonomi Harian
-    this.economy.tickDailyEconomy(gameState);
-
-    // 2. Riset Harian
-    ResearchTreeSystem.tickDailyResearch(gameState);
-
-    // 3. Event Acak Harian
-    EventSystem.tickDailyEvents(gameState);
-
-    // 4. Kompetitor AI Harian
-    CompetitorAISystem.tickDailyCompetitors(gameState);
-
-    // 5. Pergantian Bulan (setiap 30 hari)
-    if (gameState.day > CONFIG.DAYS_PER_MONTH) {
-      gameState.day = 1;
-      gameState.month += 1;
-
-      // Pembukuan bulanan
-      this.economy.tickMonthlyAccounting(gameState);
-
-      // Evaluasi peringkat pasar bulanan
-      CompetitorAISystem.checkMonthlyLeaderboard(gameState);
-
-      // Evaluasi kondisi menang / kalah
-      WinLoseChecker.check(gameState);
-
-      // Simpan otomatis ke localStorage setiap bulan
-      saveGame();
-
-      // Pergantian Tahun (setiap 12 bulan)
-      if (gameState.month > 12) {
-        gameState.month = 1;
-        gameState.year += 1;
-      }
-    }
   }
 }
 

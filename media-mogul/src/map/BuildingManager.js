@@ -1,6 +1,7 @@
-// BuildingManager.js — Penempatan bangunan 3D via registry.js, animasi frame, dan raycasting
+// BuildingManager.js — Penempatan bangunan 3D, animasi scaffolding ramp-up & raycasting
 import * as THREE from 'three';
 import { create as createAsset } from '../../registry.js';
+import { box, cyl, std } from '../../lib/helpers.js';
 
 export class BuildingManager {
   constructor(scene) {
@@ -11,14 +12,61 @@ export class BuildingManager {
   }
 
   /**
+   * Bangun perancah (scaffolding) selama masa ramp-up 5-10 hari
+   */
+  spawnScaffolding(plotId, coords) {
+    this.removeBuilding(plotId);
+
+    const group = new THREE.Group();
+    group.position.set(coords.worldX, 0, coords.worldZ);
+    group.userData.plotId = plotId;
+    group.userData.isScaffolding = true;
+
+    const woodMat = std('#b8864e', { roughness: 0.8 });
+    const metalMat = std('#f59e0b', { metalness: 0.5, roughness: 0.4 });
+
+    // 4 Tiang sudut perancah
+    const poleH = 2.8;
+    group.add(cyl(0.06, 0.06, poleH, 6, metalMat, -1.8, poleH / 2, -1.8));
+    group.add(cyl(0.06, 0.06, poleH, 6, metalMat, 1.8, poleH / 2, -1.8));
+    group.add(cyl(0.06, 0.06, poleH, 6, metalMat, -1.8, poleH / 2, 1.8));
+    group.add(cyl(0.06, 0.06, poleH, 6, metalMat, 1.8, poleH / 2, 1.8));
+
+    // Palang kayu silang
+    group.add(box(3.8, 0.08, 0.08, woodMat, 0, 1.2, 1.8));
+    group.add(box(3.8, 0.08, 0.08, woodMat, 0, 1.2, -1.8));
+    group.add(box(0.08, 0.08, 3.8, woodMat, 1.8, 1.2, 0));
+    group.add(box(0.08, 0.08, 3.8, woodMat, -1.8, 1.2, 0));
+
+    // Platform lantai kerja kayu
+    group.add(box(3.6, 0.1, 3.6, woodMat, 0, 1.3, 0));
+
+    // Papan tanda proyek konstruksi
+    const signBox = box(1.2, 0.6, 0.06, metalMat, 0, 2.0, 1.85);
+    group.add(signBox);
+
+    // Animasi denyut ringan scaffolding
+    group.userData.update = (t) => {
+      signBox.position.y = 2.0 + Math.sin(t * 3) * 0.04;
+    };
+
+    group.userData.dispose = () => {
+      group.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+      });
+    };
+
+    this.scene.add(group);
+    this.buildingsByPlot.set(plotId, group);
+    this.animatedBuildings.push(group);
+
+    return group;
+  }
+
+  /**
    * Bangun atau perbarui bangunan pada kavling tertentu
-   * @param {number} plotId ID petak (0..35)
-   * @param {string} buildingAssetId ID aset dari registry (mis. 'koran-percetakan')
-   * @param {number} level Level bangunan (1..5)
-   * @param {{worldX: number, worldZ: number}} coords Posisi dunia
    */
   spawnBuilding(plotId, buildingAssetId, level, coords) {
-    // Hapus bangunan lama jika sudah ada (saat upgrade/ganti)
     this.removeBuilding(plotId);
 
     try {
@@ -63,17 +111,11 @@ export class BuildingManager {
     this.buildingsByPlot.delete(plotId);
   }
 
-  /**
-   * Ambil posisi dunia bangunan pada petak
-   */
   getBuildingPosition(plotId) {
     const b = this.buildingsByPlot.get(plotId);
     return b ? b.position : null;
   }
 
-  /**
-   * Update semua animasi bangunan setiap frame
-   */
   update(elapsedTime, dt) {
     for (let i = 0; i < this.animatedBuildings.length; i++) {
       const b = this.animatedBuildings[i];
@@ -83,11 +125,7 @@ export class BuildingManager {
     }
   }
 
-  /**
-   * Raycast pointer mouse/touch ke kavling
-   */
   raycastPlots(clientX, clientY, camera, plotMeshes) {
-    const rect = camera.aspect; // ensure camera exists
     const mouse = new THREE.Vector2(
       (clientX / window.innerWidth) * 2 - 1,
       -(clientY / window.innerHeight) * 2 + 1
@@ -102,9 +140,6 @@ export class BuildingManager {
     return null;
   }
 
-  /**
-   * Bersihkan seluruh bangunan saat reset game
-   */
   clearAll() {
     for (const [plotId] of this.buildingsByPlot) {
       this.removeBuilding(plotId);

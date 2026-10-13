@@ -1,29 +1,27 @@
-// eventSystem.js — Sistem pemicu dan resolusi 12 event acak berkala
+// eventSystem.js — Lapisan 3: Peristiwa Berita & Keputusan Manajemen Tycoon
 import { CONFIG } from '../config.js';
 
 export class EventSystem {
-  static tickDailyEvents(gameState) {
-    if (gameState.activeEvent) return; // Tunggu pilihan pemain selesai
+  static tickDaily(gameState) {
+    if (gameState.activeEvent) return; // Menunggu interaksi pemain
 
     if (gameState.eventCooldownDays > 0) {
       gameState.eventCooldownDays -= 1;
       return;
     }
 
-    // Hanya picu event jika pemain sudah punya minimal 1 unit media
+    // Picu event hanya jika sudah memiliki unit
     if (gameState.units.length === 0) return;
 
-    // Pilih event acak dari 12 konfigurasi event
     const pool = CONFIG.RANDOM_EVENTS;
     const picked = pool[Math.floor(Math.random() * pool.length)];
 
     gameState.activeEvent = picked;
-    // Jeda game otomatis saat event penting muncul
-    gameState.prevSpeed = gameState.speed;
-    gameState.speed = 0;
+    gameState.prevSpeed = gameState.speed > 0 ? gameState.speed : 1;
+    gameState.speed = 0; // Jeda otomatis saat modal event muncul
 
     gameState.logs.unshift({
-      text: `PERISTIWA BERITA: ${picked.title}! Buka modal untuk mengambil keputusan.`,
+      text: `PERISTIWA TERKINI: "${picked.title}"! Redaksi memerlukan keputusan Anda.`,
       type: 'warning',
     });
   }
@@ -35,33 +33,39 @@ export class EventSystem {
     const choice = choiceKey === 'optionA' ? event.optionA : event.optionB;
     if (!choice) return;
 
-    // Terapkan efek uang
+    // Terapkan efek Finansial
     if (choice.effect.money) {
       gameState.money += choice.effect.money;
     }
 
-    // Terapkan efek reputasi
+    // Terapkan efek Reputasi
     if (choice.effect.reputation) {
       gameState.reputation = Math.max(0, Math.min(100, gameState.reputation + choice.effect.reputation));
     }
 
-    // Terapkan efek pertumbuhan audiens
+    // Terapkan efek Pertumbuhan Audiens
     if (choice.effect.audienceGrowth) {
       for (const unit of gameState.units) {
         unit.audience = Math.round(Math.max(100, unit.audience * (1 + choice.effect.audienceGrowth)));
       }
     }
 
+    // Catat riwayat keputusan berisiko untuk analisis post-mortem
+    if (choice.effect.reputation && choice.effect.reputation < -5) {
+      gameState.stats.riskyDecisionsTaken.push(`${event.title}: Kompromi reputasi demi dana jangka pendek.`);
+    }
+    if (choice.effect.money && choice.effect.money < -3000) {
+      gameState.stats.riskyDecisionsTaken.push(`${event.title}: Pengeluaran kas besar untuk membela prinsip redaksi.`);
+    }
+
     gameState.stats.eventsResolved += 1;
     gameState.logs.unshift({
-      text: `${choice.log}`,
+      text: choice.log,
       type: choice.effect.reputation && choice.effect.reputation < 0 ? 'warning' : 'success',
     });
 
-    // Reset status event dan kembalikan kecepatan game
     gameState.activeEvent = null;
     gameState.speed = gameState.prevSpeed !== undefined ? gameState.prevSpeed : 1;
-    // Setel ulang cooldown (sekitar 35 - 55 hari sebelum event berikutnya)
-    gameState.eventCooldownDays = 35 + Math.floor(Math.random() * 20);
+    gameState.eventCooldownDays = 35 + Math.floor(Math.random() * 25);
   }
 }

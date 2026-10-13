@@ -1,29 +1,90 @@
-// economy.js — Simulasi pendapatan harian, gaji bulanan, sinergi media, dan laporan keuangan
+// economy.js — Lapisan 3: Simulasi Ekonomi, Q_unit, Pop_t, Product-Market Fit, Kontrak, Runway
 import { CONFIG } from '../config.js';
 
 export class EconomySystem {
-  constructor(vfxManager, buildingManager) {
-    this.vfx = vfxManager;
-    this.buildings = buildingManager;
-    this.dayTimer = 0;
+  constructor(callbacks = {}) {
+    this.onFloatingText = callbacks.onFloatingText || null;
   }
 
   /**
-   * Hitung sinergi media: bonus jika memiliki unit dari berbagai era berbeda
+   * Hitung Kualitas Konten Q_unit (0-100)
+   * Terpisah dari performa finansial / profitabilitas!
+   */
+  calculateQuality(unit, gameState) {
+    const weights = CONFIG.QUALITY_WEIGHTS;
+
+    // 1. Fit (Product-Market Fit)
+    let fitValue = 0.85;
+    if (unit.type === 'majalah-kantor' && unit.segment) {
+      fitValue = CONFIG.MARKET_SEGMENTS[unit.segment]?.baseFit || 0.8;
+    }
+    // Sinergi teknologi era meningkatkan fit
+    if (gameState.researchedNodes.includes('photojournalism') && unit.type === 'majalah-kantor') {
+      fitValue = Math.min(1.0, fitValue + 0.15);
+    }
+
+    // 2. TechLevel (0..1)
+    let techScore = 0.5;
+    if (unit.type === 'koran-percetakan' && gameState.researchedNodes.includes('rotary_press')) techScore += 0.35;
+    if (unit.type === 'radio-menara' && gameState.researchedNodes.includes('sound_recording')) techScore += 0.35;
+    if (unit.type === 'tv-studio' && gameState.researchedNodes.includes('color_broadcast')) techScore += 0.35;
+    if (unit.type === 'kreator-kantor' && gameState.researchedNodes.includes('world_wide_web')) techScore += 0.35;
+    if (unit.type === 'sosmed-gedung' && gameState.researchedNodes.includes('mobile_algorithms')) techScore += 0.35;
+    techScore = Math.min(1.0, techScore + (unit.level - 1) * 0.1);
+
+    // 3. Quality Allocation Share (0..1)
+    const allocScore = (unit.budget.quality || 40) / 100;
+
+    // 4. Staff Skill & Coordination Cost (diminishing return jika staf melebihi optimal)
+    let totalStaff = 0;
+    let totalSkill = 0;
+    for (const [stype, count] of Object.entries(unit.staff)) {
+      if (count > 0) {
+        totalStaff += count;
+        totalSkill += count * (CONFIG.STAFF_TYPES[stype]?.skillValue || 20);
+      }
+    }
+
+    const optimalStaff = CONFIG.OPTIMAL_STAFF_PER_LEVEL * unit.level;
+    let coordinationPenalty = 0;
+    if (totalStaff > optimalStaff) {
+      coordinationPenalty = (totalStaff - optimalStaff) * CONFIG.COORDINATION_PENALTY_PER_EXTRA_STAFF;
+    }
+
+    const avgSkill = totalStaff > 0 ? (totalSkill / (totalStaff * 35)) * Math.max(0.4, 1 - coordinationPenalty) : 0.3;
+
+    // 5. Scandal / Reputation Penalty
+    let scandalPenalty = 0;
+    if (gameState.reputation < 45) {
+      scandalPenalty = (45 - gameState.reputation) / 45;
+    }
+
+    const q = (
+      weights.wFit * fitValue +
+      weights.wTech * techScore +
+      weights.wAlloc * allocScore +
+      weights.wStaff * avgSkill -
+      weights.wPenalty * scandalPenalty
+    );
+
+    return Math.max(5, Math.min(100, Math.round(q)));
+  }
+
+  /**
+   * Hitung Sinergi Lintas Media (Koran + Radio + TV dsb.)
    */
   calculateSynergyBonus(units) {
     if (!units || units.length === 0) return 0;
-    const distinctEras = new Set(units.map((u) => u.eraIndex));
+    const distinctEras = new Set(units.filter((u) => u.isOperational).map((u) => u.eraIndex));
     const count = distinctEras.size;
     if (count <= 1) return 0;
-    // Misalnya punya Koran + Radio + TV = 3 era -> 2 era ekstra -> +16% bonus
     return (count - 1) * CONFIG.SYNERGY_BONUS_PER_EXTRA_ERA;
   }
 
   /**
-   * Hitung total pendapatan harian seluruh unit
+   * Simulasi Harian Ekonomi
    */
-  tickDailyEconomy(gameState) {
+  tickDaily(gameState) {
     const synergy = this.calculateSynergyBonus(gameState.units);
     let totalDailyIncome = 0;
     let totalAudience = 0;
@@ -32,55 +93,49 @@ export class EconomySystem {
       const bConfig = CONFIG.BUILDINGS[unit.type];
       if (!bConfig) continue;
 
-      // Efek alokasi anggaran
-      const qualityFactor = unit.budget.quality / 50; // 0..2
-      const quantityFactor = unit.budget.quantity / 50;
-      const adsFactor = unit.budget.ads / 50;
+      // Hitung kualitas konten unit
+      unit.qualityScore = this.calculateQuality(unit, gameState);
 
-      // Efek Staf
-      const reporterBoost = (unit.staff.reporter || 0) * CONFIG.STAFF_TYPES.reporter.qualityBoost;
-      const editorBoost = (unit.staff.editor || 0) * CONFIG.STAFF_TYPES.editor.qualityBoost;
-      const creatorBoost = (unit.staff.creator || 0) * CONFIG.STAFF_TYPES.creator.audienceGrowthBoost;
+      // Status ramp-up operasional (belum 100% jika masih masa konstruksi)
+      const operationalFactor = unit.isOperational ? 1.0 : 0.25;
+
+      // Popularitas dinamis (Pop_t)
+      const pop = unit.popularity || 1.0;
+
+      // Over-Ad Penalty jika porsi iklan > 50%
+      const adsPct = unit.budget.ads || 30;
+      const overAdPenalty = adsPct > 50 ? ((adsPct - 50) / 100) * 0.35 : 0;
+
+      // Base Daily Revenue
+      const baseDailyRate = (unit.audience / 100) * bConfig.baseAdRate * (unit.level * 0.7 + 0.3);
+      const qualityFactor = unit.qualityScore / 100;
       const salesBoost = (unit.staff.sales || 0) * CONFIG.STAFF_TYPES.sales.adRevenueBoost;
 
-      // Efek Riset & Upgrade
-      let techBonus = 1.0;
-      if (unit.type === 'koran-percetakan' && gameState.researchedNodes.includes('rotary_press')) techBonus += 0.2;
-      if (unit.type === 'majalah-kantor' && gameState.researchedNodes.includes('photojournalism')) techBonus += 0.25;
-      if (unit.type === 'radio-menara' && gameState.researchedNodes.includes('sound_recording')) techBonus += 0.3;
-      if (unit.type === 'tv-studio' && gameState.researchedNodes.includes('color_broadcast')) techBonus += 0.35;
-      if (unit.type === 'kreator-kantor' && gameState.researchedNodes.includes('world_wide_web')) techBonus += 0.3;
-      if (unit.type === 'sosmed-gedung' && gameState.researchedNodes.includes('mobile_algorithms')) techBonus += 0.4;
-
-      // Pertumbuhan Audiens Harian
-      const baseGrowth = (bConfig.growthRate - 1.0) * (0.8 + 0.4 * qualityFactor + creatorBoost);
-      const adsPenalty = unit.budget.ads > 45 ? ((unit.budget.ads - 45) / 100) * 0.05 : 0;
-      const netDailyGrowthRate = Math.max(0.98, 1.0 + baseGrowth - adsPenalty);
-
-      unit.audience = Math.round(unit.audience * netDailyGrowthRate * (1 + synergy * 0.05));
-      totalAudience += unit.audience;
-
-      // Pendapatan Iklan Harian
-      const adRate = bConfig.baseAdRate * (1 + salesBoost) * adsFactor * techBonus * (1 + synergy);
-      const dailyRevenue = (unit.audience / 100) * adRate * (unit.level * 0.8 + 0.2);
+      const dailyRevenue = baseDailyRate * qualityFactor * pop * (1 - overAdPenalty) * (1 + salesBoost) * (1 + synergy) * operationalFactor;
 
       unit.lastDailyRevenue = dailyRevenue;
       totalDailyIncome += dailyRevenue;
 
-      // Efek Reputasi: kualitas tinggi menaikkan reputasi, iklan berlebihan menurunkan
-      if (unit.budget.quality > 55) {
+      // Pertumbuhan / Pengurangan Audiens Harian
+      const baseGrowth = (bConfig.growthRate - 1.0) * (0.6 + 0.8 * qualityFactor);
+      const adsLoss = adsPct > 55 ? ((adsPct - 55) / 100) * 0.04 : 0;
+      const creatorBoost = (unit.staff.creator || 0) * CONFIG.STAFF_TYPES.creator.audienceGrowthBoost;
+
+      const netGrowth = Math.max(0.97, 1.0 + baseGrowth + creatorBoost - adsLoss);
+      unit.audience = Math.round(unit.audience * netGrowth);
+      totalAudience += unit.audience;
+
+      // Efek Reputasi Harian
+      if (unit.budget.quality > 60) {
         gameState.reputation = Math.min(100, gameState.reputation + 0.02);
       }
-      if (unit.budget.ads > 60) {
-        gameState.reputation = Math.max(0, gameState.reputation - 0.03);
+      if (adsPct > 65) {
+        gameState.reputation = Math.max(0, gameState.reputation - 0.04);
       }
 
-      // Visual efek floating text sesekali (setiap 5 hari per unit agar rapi & menyenangkan)
-      if (gameState.day % 5 === (unit.plotId % 5) && this.vfx) {
-        const pos = this.buildings.getBuildingPosition(unit.plotId);
-        if (pos) {
-          this.vfx.spawnFloatingText(Math.round(dailyRevenue * 5), pos, 'income');
-        }
+      // Visual floating text tiap 5 hari per unit
+      if (gameState.day % 5 === (unit.plotId % 5) && this.onFloatingText && unit.isOperational) {
+        this.onFloatingText(Math.round(dailyRevenue * 5), unit.plotId, 'income');
       }
     }
 
@@ -89,68 +144,120 @@ export class EconomySystem {
       gameState.stats.peakAudience = totalAudience;
     }
 
+    // Update tren audiens (6 titik historis)
+    if (gameState.day === 1 || gameState.day === 15) {
+      gameState.audienceHistory.shift();
+      gameState.audienceHistory.push(totalAudience);
+    }
+
     gameState.money += totalDailyIncome;
     gameState.stats.totalLifetimeEarnings += totalDailyIncome;
   }
 
   /**
-   * Pembukuan akhir bulan: gaji staf, biaya operasional gedung, dan laba bersih
+   * Penutupan Buku Bulanan:
+   * KasAkhir = KasAwal + Penjualan + Kontrak - Operasional - Gaji - Riset
    */
-  tickMonthlyAccounting(gameState) {
-    let totalMonthlySalaries = 0;
-    let totalMonthlyUpkeep = 0;
-    let totalMonthlyIncomeEstimate = 0;
+  tickMonthly(gameState) {
+    const openingCash = Math.round(gameState.money);
+    let totalSalesIncome = 0;
+    let totalContractIncome = 0;
+    let totalOperationalCost = 0;
+    let totalStaffSalaries = 0;
 
+    // Evaluasi Popularitas Unit & Kontrak Bulanan
     for (const unit of gameState.units) {
       const bConfig = CONFIG.BUILDINGS[unit.type];
       if (!bConfig) continue;
 
-      // Upkeep operasional bangunan (naik sesuai level)
-      const upkeep = bConfig.baseUpkeep * (1 + (unit.level - 1) * 0.5);
-      totalMonthlyUpkeep += upkeep;
+      // 1. Peluruhan Popularitas Alami (Pop_t decay)
+      const decayRate = CONFIG.ERA_POPULARITY_DECAY[unit.eraIndex] || 0.95;
+      const quantityBoost = ((unit.budget.quantity || 30) / 50) * 0.06;
+      unit.popularity = Math.max(0.3, Math.min(2.5, Number(((unit.popularity || 1.0) * decayRate + quantityBoost).toFixed(2))));
 
-      // Gaji seluruh staf pada unit ini
-      let unitSalaries = 0;
-      for (const [staffKey, count] of Object.entries(unit.staff)) {
-        const staffConfig = CONFIG.STAFF_TYPES[staffKey];
-        if (staffConfig && count > 0) {
-          unitSalaries += staffConfig.salary * count;
+      // 2. Akumulasi Pendapatan Penjualan Iklan Bulanan
+      totalSalesIncome += (unit.lastDailyRevenue || 0) * CONFIG.DAYS_PER_MONTH;
+
+      // 3. Kontrak Sponsor Tetap (Radio & TV)
+      if (bConfig.contractMonthlyIncome && unit.isOperational) {
+        if (gameState.reputation >= bConfig.contractMinReputation) {
+          const contractVal = bConfig.contractMonthlyIncome * unit.level;
+          totalContractIncome += contractVal;
+        } else {
+          gameState.logs.unshift({
+            text: `KONTRAK DIBATALKAN: Sponsor program ${unit.name} hengkang karena reputasi di bawah ${bConfig.contractMinReputation}!`,
+            type: 'warning',
+          });
         }
       }
-      totalMonthlySalaries += unitSalaries;
 
-      totalMonthlyIncomeEstimate += (unit.lastDailyRevenue || 0) * CONFIG.DAYS_PER_MONTH;
+      // 4. Biaya Operasional Bangunan (selalu naik tiap upgrade level)
+      const upkeep = bConfig.baseUpkeep * (1 + (unit.level - 1) * 0.6);
+      totalOperationalCost += upkeep;
+
+      // 5. Gaji Seluruh Staf Terpasang
+      for (const [stype, count] of Object.entries(unit.staff)) {
+        const staffCfg = CONFIG.STAFF_TYPES[stype];
+        if (staffCfg && count > 0) {
+          totalStaffSalaries += staffCfg.salary * count;
+        }
+      }
     }
 
-    const totalMonthlyExpenses = totalMonthlySalaries + totalMonthlyUpkeep;
-    gameState.money -= totalMonthlyExpenses;
+    const totalExpenses = totalOperationalCost + totalStaffSalaries;
+    const totalIncome = totalSalesIncome + totalContractIncome;
+    const netProfit = totalIncome - totalExpenses;
 
-    const netProfit = totalMonthlyIncomeEstimate - totalMonthlyExpenses;
+    // Potong pengeluaran bulanan dari kas
+    gameState.money -= totalExpenses;
+    const closingCash = Math.round(gameState.money);
 
-    gameState.monthlyHistory = {
-      lastIncome: Math.round(totalMonthlyIncomeEstimate),
-      lastExpenses: Math.round(totalMonthlyExpenses),
-      lastProfit: Math.round(netProfit),
+    // Update Riwayat 3 Bulan Pengeluaran untuk Hitungan Runway
+    gameState.financialHistory3Months.shift();
+    gameState.financialHistory3Months.push(Math.round(totalExpenses));
+
+    const avgExpense3M = gameState.financialHistory3Months.reduce((a, b) => a + b, 0) / 3;
+    gameState.runwayMonths = Math.max(0, Number((gameState.money / Math.max(1, avgExpense3M)).toFixed(1)));
+
+    // Buat Kalimat Insight Sebab-Akibat Otomatis
+    let insight = 'Operasional stabil: Arus kas berjalan seimbang dengan alokasi konten saat ini.';
+    if (gameState.runwayMonths < CONFIG.RUNWAY_WARNING_THRESHOLD) {
+      insight = `PERINGATAN RUNWAY KRITIS: Dana cadangan kas sisa ${gameState.runwayMonths} bulan! Segera kurangi staf atau naikkan pendapatan iklan.`;
+    } else if (netProfit < 0) {
+      insight = `Defisit bulanan -$${Math.abs(Math.round(netProfit))}: Biaya rutin operasional & gaji melebihi hasil penjualan.`;
+    } else if (totalContractIncome > 0) {
+      insight = `Kinerja prima: Kontrak sponsor menyumbang +$${Math.round(totalContractIncome)} penopang likuiditas yang solid.`;
+    }
+
+    // Catat Laporan Arus Kas Bulanan Lengkap (Screen #9)
+    gameState.lastMonthlyReport = {
+      openingCash,
+      salesIncome: Math.round(totalSalesIncome),
+      contractIncome: Math.round(totalContractIncome),
+      operationalCosts: Math.round(totalOperationalCost),
+      staffSalaries: Math.round(totalStaffSalaries),
+      researchCosts: 0,
+      closingCash,
+      netProfit: Math.round(netProfit),
+      insightText: insight,
+      marketShareChange: 0,
     };
 
-    // Evaluasi status utang
+    // Evaluasi Status Defisit
     if (gameState.money < 0) {
       gameState.consecutiveDebtMonths += 1;
       gameState.logs.unshift({
-        text: `PERINGATAN DEFISIT: Kas media minus (-$${Math.abs(Math.round(gameState.money))}). Bulan berturut-turut minus: ${gameState.consecutiveDebtMonths}/2.`,
+        text: `PERINGATAN DEFISIT KAS: Saldo minus ($${Math.round(gameState.money)}). Bulan berturut-turut minus: ${gameState.consecutiveDebtMonths}/2.`,
         type: 'error',
       });
     } else {
       gameState.consecutiveDebtMonths = 0;
       gameState.logs.unshift({
-        text: `Laporan Keuangan Bulan ${gameState.month}/${gameState.year}: Laba Bersih +$${Math.round(netProfit)} (Audiens: ${gameState.totalAudience.toLocaleString()}).`,
-        type: 'success',
+        text: `Laporan Keuangan Bln ${gameState.month}/${gameState.year}: Laba Bersih ${netProfit >= 0 ? '+' : ''}$${Math.round(netProfit)}. Runway: ${gameState.runwayMonths} bulan.`,
+        type: netProfit >= 0 ? 'success' : 'warning',
       });
     }
 
-    // Pangkas log agar tidak membengkak
-    if (gameState.logs.length > 25) {
-      gameState.logs.pop();
-    }
+    if (gameState.logs.length > 30) gameState.logs.pop();
   }
 }

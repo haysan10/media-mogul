@@ -1,10 +1,7 @@
-// eraManager.js — Transisi dan syarat pembukaan era media baru
+// eraManager.js — Lapisan 3: Transisi Era & Evaluasi Kelayakan
 import { CONFIG } from '../config.js';
 
 export class EraManager {
-  /**
-   * Cek kelayakan membuka era tertentu
-   */
   static checkEligibility(eraIndex, gameState) {
     if (eraIndex <= gameState.currentEraIndex) {
       return { eligible: false, reason: 'Era ini sudah aktif' };
@@ -16,29 +13,26 @@ export class EraManager {
     const era = CONFIG.ERAS[eraIndex];
     if (!era) return { eligible: false, reason: 'Era tidak valid' };
 
-    // Cek riset wajib
+    // Validasi Riset
     if (era.requiredResearch && !gameState.researchedNodes.includes(era.requiredResearch)) {
       const node = CONFIG.RESEARCH_NODES.find((n) => n.id === era.requiredResearch);
-      return { eligible: false, reason: `Butuh riset "${node?.title || era.requiredResearch}"` };
+      return { eligible: false, reason: `Wajib menguasai riset "${node?.title || era.requiredResearch}"` };
     }
 
-    // Cek reputasi minimum
+    // Validasi Reputasi
     if (gameState.reputation < era.unlockReputation) {
-      return { eligible: false, reason: `Butuh reputasi minimal ${era.unlockReputation} (sekarang: ${Math.round(gameState.reputation)})` };
+      return { eligible: false, reason: `Membutuhkan reputasi minimal ${era.unlockReputation} (Saat ini: ${Math.round(gameState.reputation)})` };
     }
 
-    // Cek uang investasi era
+    // Validasi Dana
     if (gameState.money < era.unlockCost) {
-      return { eligible: false, reason: `Butuh dana modal $${era.unlockCost.toLocaleString()}` };
+      return { eligible: false, reason: `Dana ekspansi tidak cukup (Butuh $${era.unlockCost.toLocaleString()})` };
     }
 
     return { eligible: true };
   }
 
-  /**
-   * Maju ke era berikutnya
-   */
-  static advanceEra(eraIndex, gameState, world) {
+  static advanceEra(eraIndex, gameState, onEraColorChange = null) {
     const check = this.checkEligibility(eraIndex, gameState);
     if (!check.eligible) return { success: false, reason: check.reason };
 
@@ -46,16 +40,15 @@ export class EraManager {
     gameState.money -= era.unlockCost;
     gameState.currentEraIndex = eraIndex;
 
-    // Picu transisi warna langit, fog, dan pencahayaan diorama 3D
-    if (world) {
-      world.applyEraColors(eraIndex, true);
+    if (typeof onEraColorChange === 'function') {
+      onEraColorChange(eraIndex);
     }
 
     gameState.logs.unshift({
-      text: `TRANSISI ERA: Selamat datang di ${era.name.toUpperCase()} (${era.year})! Gedung baru "${era.buildingName}" kini dapat dibangun.`,
+      text: `REVOLUSI MEDIA: Masuk ke ${era.name.toUpperCase()} (${era.year})! Kemampuan baru: ${era.newCapability}. Tanggung jawab baru: ${era.newResponsibility}.`,
       type: 'success',
     });
 
-    return { success: true };
+    return { success: true, era };
   }
 }

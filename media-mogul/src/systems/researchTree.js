@@ -1,32 +1,30 @@
-// researchTree.js — Pohon riset teknologi media (8 node)
+// researchTree.js — Lapisan 3: Teknologi & Inovasi (8 Node)
 import { CONFIG } from '../config.js';
 
 export class ResearchTreeSystem {
-  /**
-   * Mulai proyek riset
-   */
   static startResearch(nodeId, gameState) {
     if (gameState.activeResearch) {
-      return { success: false, reason: 'Sedang ada proyek riset lain yang berjalan' };
+      return { success: false, reason: 'Laboratorium riset sedang mengerjakan proyek lain' };
     }
 
     if (gameState.researchedNodes.includes(nodeId)) {
-      return { success: false, reason: 'Riset ini sudah selesai dipelajari' };
+      return { success: false, reason: 'Teknologi ini sudah berhasil dikuasai' };
     }
 
     const node = CONFIG.RESEARCH_NODES.find((n) => n.id === nodeId);
     if (!node) return { success: false, reason: 'Node riset tidak ditemukan' };
 
-    // Cek prasyarat
-    for (const req of node.prereq) {
-      if (!gameState.researchedNodes.includes(req)) {
-        const reqNode = CONFIG.RESEARCH_NODES.find((n) => n.id === req);
-        return { success: false, reason: `Butuh riset "${reqNode?.title || req}" terlebih dahulu` };
+    // Validasi Prasyarat
+    for (const reqId of node.prereq) {
+      if (!gameState.researchedNodes.includes(reqId)) {
+        const reqNode = CONFIG.RESEARCH_NODES.find((n) => n.id === reqId);
+        return { success: false, reason: `Membutuhkan riset "${reqNode?.title || reqId}" terlebih dahulu` };
       }
     }
 
+    // Validasi Biaya
     if (gameState.money < node.cost) {
-      return { success: false, reason: `Dana tidak cukup (butuh $${node.cost.toLocaleString()})` };
+      return { success: false, reason: `Dana riset tidak cukup (Butuh $${node.cost.toLocaleString()})` };
     }
 
     gameState.money -= node.cost;
@@ -38,17 +36,14 @@ export class ResearchTreeSystem {
     };
 
     gameState.logs.unshift({
-      text: `Memulai riset inovasi: ${node.title} (Estimasi: ${node.daysRequired} hari).`,
+      text: `Memulai riset: "${node.title}" ($${node.cost.toLocaleString()} · ${node.daysRequired} hari).`,
       type: 'info',
     });
 
     return { success: true };
   }
 
-  /**
-   * Kemajuan riset harian
-   */
-  static tickDailyResearch(gameState) {
+  static tickDaily(gameState) {
     if (!gameState.activeResearch) return;
 
     gameState.activeResearch.progressDays += 1;
@@ -61,7 +56,7 @@ export class ResearchTreeSystem {
       gameState.activeResearch = null;
 
       gameState.logs.unshift({
-        text: `RISET SELESAI: "${node?.title}"! ${node?.effectText}`,
+        text: `RISET TUNTAS: "${node?.title}"! Kemampuan baru terbuka: ${node?.newCapability}.`,
         type: 'success',
       });
     }

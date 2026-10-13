@@ -76,7 +76,7 @@ export class World {
   }
 
   setupSkyAndFog() {
-    const era0 = CONFIG.ERAS[0].sky;
+    const era0 = CONFIG.DESIGN_TOKENS.eras[0];
     this.scene.fog = new THREE.Fog(era0.fog, era0.fogNear, era0.fogFar);
 
     // Sky dome bola besar 100m dengan gradient warna per-vertex
@@ -245,23 +245,23 @@ export class World {
   }
 
   applyEraColors(eraIndex, animate = true) {
-    const era = CONFIG.ERAS[eraIndex];
-    if (!era) return;
+    const eraToken = CONFIG.DESIGN_TOKENS.eras[eraIndex];
+    if (!eraToken) return;
 
     if (!animate) {
       this.currentEraIndex = eraIndex;
-      this.curHorizon.set(era.sky.horizon);
-      this.curZenith.set(era.sky.zenith);
-      this.curFog.set(era.sky.fog);
-      this.curHemiSky.set(era.sky.hemiSky);
-      this.curHemiGround.set(era.sky.hemiGround);
-      this.curSun.set(era.sky.sunColor);
-      this.curSunIntensity = era.sky.sunIntensity;
+      this.curHorizon.set(eraToken.skyHorizon);
+      this.curZenith.set(eraToken.skyTop);
+      this.curFog.set(eraToken.fog);
+      this.curHemiSky.set(eraToken.skyTop);
+      this.curHemiGround.set('#2f3542');
+      this.curSun.set(eraToken.sunColor);
+      this.curSunIntensity = eraToken.sunIntensity;
 
       this.updateSkyVertices();
       this.scene.fog.color.copy(this.curFog);
-      this.scene.fog.near = era.sky.fogNear;
-      this.scene.fog.far = era.sky.fogFar;
+      this.scene.fog.near = eraToken.fogNear;
+      this.scene.fog.far = eraToken.fogFar;
 
       this.hemiLight.color.copy(this.curHemiSky);
       this.hemiLight.groundColor.copy(this.curHemiGround);
@@ -271,25 +271,23 @@ export class World {
     }
 
     // Mulai transisi halus 2 detik
-    this.fromEra = CONFIG.ERAS[this.currentEraIndex].sky;
-    this.toEra = era.sky;
+    this.fromEra = CONFIG.DESIGN_TOKENS.eras[this.currentEraIndex];
+    this.toEra = eraToken;
     this.currentEraIndex = eraIndex;
     this.isTransitioning = true;
     this.transitionProgress = 0;
   }
 
   update(dt) {
-    if (this.isTransitioning) {
+    if (this.isTransitioning && this.fromEra && this.toEra) {
       this.transitionProgress += dt / this.transitionDuration;
       const k = THREE.MathUtils.clamp(this.transitionProgress, 0, 1);
-      // Smoothstep easing
       const t = THREE.MathUtils.smoothstep(k, 0, 1);
 
-      this.curHorizon.lerpColors(new THREE.Color(this.fromEra.horizon), new THREE.Color(this.toEra.horizon), t);
-      this.curZenith.lerpColors(new THREE.Color(this.fromEra.zenith), new THREE.Color(this.toEra.zenith), t);
+      this.curHorizon.lerpColors(new THREE.Color(this.fromEra.skyHorizon), new THREE.Color(this.toEra.skyHorizon), t);
+      this.curZenith.lerpColors(new THREE.Color(this.fromEra.skyTop), new THREE.Color(this.toEra.skyTop), t);
       this.curFog.lerpColors(new THREE.Color(this.fromEra.fog), new THREE.Color(this.toEra.fog), t);
-      this.curHemiSky.lerpColors(new THREE.Color(this.fromEra.hemiSky), new THREE.Color(this.toEra.hemiSky), t);
-      this.curHemiGround.lerpColors(new THREE.Color(this.fromEra.hemiGround), new THREE.Color(this.toEra.hemiGround), t);
+      this.curHemiSky.lerpColors(new THREE.Color(this.fromEra.skyTop), new THREE.Color(this.toEra.skyTop), t);
       this.curSun.lerpColors(new THREE.Color(this.fromEra.sunColor), new THREE.Color(this.toEra.sunColor), t);
       this.curSunIntensity = THREE.MathUtils.lerp(this.fromEra.sunIntensity, this.toEra.sunIntensity, t);
 
@@ -299,7 +297,6 @@ export class World {
       this.scene.fog.far = THREE.MathUtils.lerp(this.fromEra.fogFar, this.toEra.fogFar, t);
 
       this.hemiLight.color.copy(this.curHemiSky);
-      this.hemiLight.groundColor.copy(this.curHemiGround);
       this.sunLight.color.copy(this.curSun);
       this.sunLight.intensity = this.curSunIntensity;
 

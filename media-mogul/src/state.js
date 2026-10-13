@@ -1,9 +1,8 @@
-// state.js — Manajemen gameState, penyimpanan localStorage, dan reset
+// state.js — Lapisan 2: State Manajemen & Penyimpanan (LocalStorage)
 import { CONFIG } from './config.js';
 
-const STORAGE_KEY = 'media_mogul_saved_game_v1';
+const STORAGE_KEY = 'media_mogul_saved_game_v2';
 
-/** Deteksi tier kualitas awal berdasarkan hardware & viewport */
 export function detectInitialQualityTier() {
   try {
     const cores = navigator.hardwareConcurrency || 4;
@@ -20,7 +19,6 @@ export function detectInitialQualityTier() {
   }
 }
 
-/** Inisialisasi kavling 6x6 (36 petak) */
 function createInitialPlots() {
   const plots = [];
   const size = CONFIG.GRID_SIZE;
@@ -31,14 +29,13 @@ function createInitialPlots() {
         id,
         gridX: x,
         gridZ: z,
-        unit: null, // Berisi objek unit jika dibangun
+        unit: null,
       });
     }
   }
   return plots;
 }
 
-/** Inisialisasi kompetitor AI */
 function createInitialCompetitors() {
   return CONFIG.COMPETITORS.map((c) => ({
     id: c.id,
@@ -49,7 +46,6 @@ function createInitialCompetitors() {
   }));
 }
 
-/** Template state baru */
 export function createNewGameState() {
   return {
     money: CONFIG.START_MONEY,
@@ -61,40 +57,70 @@ export function createNewGameState() {
 
     currentEraIndex: 0,
     plots: createInitialPlots(),
-    units: [], // Unit yang aktif
+    units: [],
     nextUnitId: 1,
 
-    researchedNodes: [], // ID riset yang selesai
-    activeResearch: null, // { id, progressDays, totalDays }
+    // Onboarding & Tutorial
+    isFirstTimeOnboarding: true,
 
+    // Masa ramp-up konstruksi unit (5-10 hari)
+    rampUpQueue: [], // [ { unitId, remainingDays, totalDays } ]
+
+    // Riset
+    researchedNodes: [],
+    activeResearch: null, // { id, title, progressDays, totalDays }
+
+    // Kompetitor & Pangsa Pasar
     competitors: createInitialCompetitors(),
     playerMarketShare: 0,
     consecutiveMonthsAsTop1: 0,
     consecutiveDebtMonths: 0,
 
-    gameStatus: 'playing', // 'playing' | 'won' | 'lost'
-    endStats: null,
+    // Kontrak Sponsor Aktif (Radio & TV)
+    activeContracts: [], // [ { id, unitId, type, monthlyValue, minReputation } ]
 
-    qualityTier: detectInitialQualityTier(), // 'high' | 'med' | 'low'
-    selectedPlotId: null,
+    // Runway Keuangan (Bulan tersisa sebelum kas habis)
+    runwayMonths: 99,
+    financialHistory3Months: [800, 800, 800], // Riwayat rata-rata pengeluaran 3 bulan terakhir
 
-    activeEvent: null,
-    eventCooldownDays: 35, // Jeda sebelum event pertama
-
-    monthlyHistory: {
-      lastIncome: 0,
-      lastExpenses: 0,
-      lastProfit: 0,
+    // Laporan Arus Kas Bulanan Detail (Screen #9)
+    lastMonthlyReport: {
+      openingCash: CONFIG.START_MONEY,
+      salesIncome: 0,
+      contractIncome: 0,
+      operationalCosts: 0,
+      staffSalaries: 0,
+      researchCosts: 0,
+      closingCash: CONFIG.START_MONEY,
+      netProfit: 0,
+      insightText: 'Selamat memulai kerajaan media Anda! Bangun percetakan koran perdana untuk menghasilkan arus kas.',
+      marketShareChange: 0,
     },
 
+    // Riwayat Tren Audiens (untuk mini sparkline HUD)
+    audienceHistory: [0, 0, 0, 0, 0, 0],
+
+    // Game Status
+    gameStatus: 'playing', // 'playing' | 'won' | 'lost'
+    postMortem: null, // Berisi breakdown 3 bulan terakhir jika kalah
+
+    // Pengaturan & UI State
+    qualityTier: detectInitialQualityTier(),
+    selectedPlotId: null,
+    activeEvent: null,
+    eventCooldownDays: 40,
+
+    // Statistik Permainan
     stats: {
       totalLifetimeEarnings: 0,
       totalUnitsBuilt: 0,
       peakAudience: 0,
       eventsResolved: 0,
       startRealTime: Date.now(),
+      riskyDecisionsTaken: [],
     },
 
+    // News Ticker
     logs: [
       { text: 'Selamat datang di Media Mogul! Bangun percetakan koran pertamamu di kavling kota.', type: 'info' }
     ],
@@ -103,7 +129,6 @@ export function createNewGameState() {
 
 export let gameState = createNewGameState();
 
-/** Simpan gameState ke localStorage secara aman */
 export function saveGame() {
   try {
     const serialized = JSON.stringify(gameState);
@@ -115,14 +140,12 @@ export function saveGame() {
   }
 }
 
-/** Muat gameState dari localStorage jika tersedia */
 export function loadGame() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (data && data.plots && Array.isArray(data.units)) {
-      // Validasi & integrasikan kembali
       gameState = Object.assign(createNewGameState(), data);
       return true;
     }
@@ -132,7 +155,6 @@ export function loadGame() {
   return false;
 }
 
-/** Reset total dan hapus save game */
 export function resetGame() {
   try {
     localStorage.removeItem(STORAGE_KEY);

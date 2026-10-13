@@ -1,4 +1,4 @@
-// VFX.js — Sistem Floating Text (+$ / -$) ber-pool & partikel konstruksi diorama
+// VFX.js — Lapisan 1: Floating Text (+$ / -$ / Rep) Ber-pool & Efek Bahaya Vignette
 import * as THREE from 'three';
 
 const POOL_SIZE = 35;
@@ -8,8 +8,10 @@ export class VFXManager {
     this.scene = scene;
     this.pool = [];
     this.activeTexts = [];
+    this.dangerVignetteEl = null;
 
     this.initPool();
+    this.initVignetteDOM();
   }
 
   initPool() {
@@ -50,36 +52,52 @@ export class VFXManager {
     }
   }
 
-  /**
-   * Munculkan teks melayang beranimasi naik & pudar
-   * @param {string|number} text Jumlah dolar atau pesan teks
-   * @param {THREE.Vector3|{x,y,z}} worldPosition Titik muncul
-   * @param {'income'|'expense'|'rep'} type Jenis warna
-   */
+  initVignetteDOM() {
+    let el = document.getElementById('vfx-danger-vignette');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'vfx-danger-vignette';
+      el.style.cssText = `
+        position: fixed; inset: 0; pointer-events: none; z-index: 5;
+        box-shadow: inset 0 0 100px rgba(239, 68, 68, 0);
+        transition: box-shadow 0.3s ease;
+      `;
+      document.body.appendChild(el);
+    }
+    this.dangerVignetteEl = el;
+  }
+
+  setDangerVignette(isCritical, isNegativeCash) {
+    if (!this.dangerVignetteEl) return;
+    if (isNegativeCash) {
+      this.dangerVignetteEl.style.boxShadow = 'inset 0 0 120px rgba(239, 68, 68, 0.45)';
+    } else if (isCritical) {
+      this.dangerVignetteEl.style.boxShadow = 'inset 0 0 80px rgba(245, 158, 11, 0.3)';
+    } else {
+      this.dangerVignetteEl.style.boxShadow = 'inset 0 0 0 rgba(0, 0, 0, 0)';
+    }
+  }
+
   spawnFloatingText(text, worldPosition, type = 'income') {
-    // Cari sprite dari pool yang idle
     const item = this.pool.find((p) => !p.active);
-    if (!item) return; // Pool sedang penuh
+    if (!item) return;
 
     item.active = true;
     item.age = 0;
     item.pos.set(worldPosition.x, worldPosition.y + 2.0, worldPosition.z);
 
-    // Format text
     let str = typeof text === 'number' ? (text >= 0 ? `+$${Math.round(text)}` : `-$${Math.abs(Math.round(text))}`) : text;
-    let col = '#22c55e'; // Hijau income
-    if (type === 'expense' || (typeof text === 'number' && text < 0)) col = '#ef4444';
-    if (type === 'rep') col = '#38bdf8';
+    let col = '#4fd17a';
+    if (type === 'expense' || (typeof text === 'number' && text < 0)) col = '#ef4d5e';
+    if (type === 'rep') col = '#6ea8ff';
 
-    // Gambar teks ke kanvas item
     const ctx = item.ctx;
     ctx.clearRect(0, 0, item.canvas.width, item.canvas.height);
 
-    ctx.font = 'bold 32px -apple-system, sans-serif';
+    ctx.font = 'bold 30px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Bayangan tepi untuk keterbacaan tinggi di segala pencahayaan
     ctx.fillStyle = '#000000';
     ctx.fillText(str, 64 + 1, 32 + 2);
 
@@ -101,7 +119,6 @@ export class VFXManager {
       const progress = item.age / item.life;
 
       if (progress >= 1) {
-        // Kembalikan ke pool
         item.active = false;
         item.sprite.visible = false;
         item.material.opacity = 0;
@@ -109,9 +126,7 @@ export class VFXManager {
         continue;
       }
 
-      // Animasi melayang naik ke atas secara konstan
       item.sprite.position.y = item.pos.y + progress * 2.2;
-      // Efek pudar transparan mendekati akhir hidup
       item.material.opacity = Math.max(0, (1 - progress) * 1.2);
     }
   }
@@ -124,5 +139,9 @@ export class VFXManager {
     }
     this.pool = [];
     this.activeTexts = [];
+    if (this.dangerVignetteEl) {
+      this.dangerVignetteEl.remove();
+      this.dangerVignetteEl = null;
+    }
   }
 }
