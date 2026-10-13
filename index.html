@@ -183,7 +183,7 @@
       color: #fff;
     }
 
-    /* Sub HUD: Bottom Left Navigation Controls & Info */
+    /* Sub HUD: Bottom Navigation Controls & Info */
     #hud-bottom {
       position: absolute;
       bottom: 16px;
@@ -332,7 +332,7 @@
       gap: 10px;
     }
 
-    /* Cards inside modals */
+    /* Option Cards */
     .option-card {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--panel-border);
@@ -385,7 +385,7 @@
       margin-top: 4px;
     }
 
-    /* Sliders & Form controls */
+    /* Sliders & Controls */
     .control-row {
       display: flex;
       flex-direction: column;
@@ -1024,7 +1024,7 @@ const CONFIG = {
       cost: 9500000,
       baseOpCost: 1200000,
       baseAudience: 10000,
-      baseRevPerAud: 220, // Rp per audience per bulan
+      baseRevPerAud: 220,
       color: 0xbf4d3b,
       desc: "Menghasilkan pendapatan stabil dari penjualan eceran dan iklan cetak.",
     },
@@ -1213,33 +1213,29 @@ let gameState = {
   eraId: 1,
   speed: 1, // 0: pause, 1, 2, 5
   
-  units: [], // Array of unit objects on grid
+  units: [],
   completedResearch: [],
   
-  // Trackers
   consecutiveNegativeCashMonths: 0,
   consecutiveWinMonths: 0,
   gameEnded: false,
   nextEventInDays: 35,
   
-  // AI Competitors
   competitors: [
     { id: "comp_1", name: "Nusantara Post Group", audience: 50000, color: "#f97316" },
     { id: "comp_2", name: "Global Surya Broadcast", audience: 30000, color: "#eab308" },
     { id: "comp_3", name: "ByteViral Network", audience: 5000, color: "#06b6d4" }
   ],
   
-  // Last monthly report data
   lastReport: {
     grossRevenue: 0,
     staffSalaries: 0,
     opCosts: 0,
     netProfit: 0,
-    audChange: 0
+    totalAudience: 0
   }
 };
 
-// Helper Format Uang
 function formatRupiah(num) {
   if (Math.abs(num) >= 1000000000) {
     return "Rp " + (num / 1000000000).toFixed(2) + " M";
@@ -1260,7 +1256,6 @@ function formatNumber(num) {
   return Math.round(num).toLocaleString('id-ID');
 }
 
-// LocalStorage Auto-save
 function saveGame() {
   try {
     const serialized = JSON.stringify({
@@ -1311,13 +1306,11 @@ function loadGame() {
     gameState.consecutiveWinMonths = data.consecutiveWinMonths ?? 0;
     if (data.competitors) gameState.competitors = data.competitors;
     
-    // Clear old unit meshes
     gameState.units.forEach(u => {
       if (u.mesh) scene.remove(u.mesh);
     });
     gameState.units = [];
 
-    // Rebuild units
     if (Array.isArray(data.units)) {
       data.units.forEach(uData => {
         const u = {
@@ -1355,21 +1348,102 @@ function resetGame() {
 }
 
 // ==========================================
-// 3. THREE SETUP
+// 3. THREE.JS PROCEDURAL ASSET GENERATOR TOOLKIT
+// (Diadaptasi dari standard threejs-asset-generator)
 // ==========================================
+// Seeded PRNG deterministik (Mulberry32)
+function createRng(seed = 1) {
+  let s = Math.floor(seed) || 1;
+  return {
+    next() {
+      s |= 0; s = s + 0x6D2B79F5 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    },
+    range(a, b) { return a + this.next() * (b - a); },
+    int(a, b) { return Math.floor(this.range(a, b + 1)); },
+    pick(arr) { return arr[Math.floor(this.next() * arr.length)]; },
+    sign() { return this.next() < 0.5 ? -1 : 1; }
+  };
+}
+
+// Material Helpers (Low-Poly Flat Shading & Clean Palettes)
+function std(color = '#888888', params = {}) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.85,
+    metalness: 0,
+    flatShading: true,
+    ...params
+  });
+}
+
+function glow(color = '#ffd27a', intensity = 1.3, params = {}) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: intensity,
+    roughness: 0.5,
+    flatShading: true,
+    ...params
+  });
+}
+
+function tint(color, { h = 0, s = 0, l = 0 } = {}) {
+  return new THREE.Color(color).offsetHSL(h, s, l);
+}
+
+// Geometry Primitive Helpers
+const meshOf = (geo, mat, x = 0, y = 0, z = 0) => {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+};
+
+const box = (w, h, d, mat, x, y, z) => meshOf(new THREE.BoxGeometry(w, h, d), mat, x, y, z);
+const cyl = (rTop, rBot, h, seg, mat, x, y, z) => meshOf(new THREE.CylinderGeometry(rTop, rBot, h, seg), mat, x, y, z);
+const cone = (r, h, seg, mat, x, y, z) => meshOf(new THREE.ConeGeometry(r, h, seg), mat, x, y, z);
+const sphere = (r, seg, mat, x, y, z) => meshOf(new THREE.SphereGeometry(r, seg, Math.max(3, Math.round(seg * 0.75))), mat, x, y, z);
+const ico = (r, detail, mat, x, y, z) => meshOf(new THREE.IcosahedronGeometry(r, detail), mat, x, y, z);
+
+// Jitter Vertices (Untuk estetika organik faceted khas low-poly)
+function jitter(geo, rng, amount = 0.08) {
+  const pos = geo.attributes.position;
+  const cache = new Map();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const key = `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`;
+    let offset = cache.get(key);
+    if (!offset) {
+      offset = [(rng.next() - 0.5) * 2 * amount, (rng.next() - 0.5) * 2 * amount, (rng.next() - 0.5) * 2 * amount];
+      cache.set(key, offset);
+    }
+    pos.setXYZ(i, x + offset[0], y + offset[1], z + offset[2]);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+// THREE SETUP
 let scene, camera, renderer, raycaster, mouse;
-let gridPlots = []; // 6x6 interactive tile meshes
+let gridPlots = [];
+let animatedFoliage = [];
 let cameraTarget = new THREE.Vector3(0, 0, 0);
 let cameraZoom = CONFIG.CAMERA.INITIAL_ZOOM;
 let isDraggingCamera = false;
 let previousPointerPos = { x: 0, y: 0 };
 let pointerDownPos = { x: 0, y: 0 };
 let hoveredPlot = null;
-let hoveredUnit = null;
 
-// Lighting & Atmosphere
-let ambientLight, dirLight, hemisphereLight;
-let currentAtmosphereColor = new THREE.Color();
+let ambientLight, dirLight;
 let targetAtmosphereColor = new THREE.Color();
 
 function initThree() {
@@ -1387,17 +1461,14 @@ function initThree() {
   const width = window.innerWidth;
   const height = window.innerHeight;
 
-  // Scene & Fog
   scene = new THREE.Scene();
   const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
   scene.background = new THREE.Color(currentEra.theme.bg);
   scene.fog = new THREE.Fog(currentEra.theme.fog, 18, 75);
 
-  // Isometric Tilted Perspective Camera
   camera = new THREE.PerspectiveCamera(40, width / height, 0.5, 200);
   updateCameraPosition();
 
-  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1405,16 +1476,14 @@ function initThree() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
-  // Raycaster & Mouse
   raycaster = new THREE.Raycaster();
   mouse = new THREE.Vector2();
 
-  // Pencahayaan
   ambientLight = new THREE.AmbientLight(currentEra.theme.ambient, 1.4);
   scene.add(ambientLight);
 
-  dirLight = new THREE.DirectionalLight(currentEra.theme.light, 1.5);
-  dirLight.position.set(30, 45, 20);
+  dirLight = new THREE.DirectionalLight(currentEra.theme.light, 1.6);
+  dirLight.position.set(28, 42, 22);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 1024;
   dirLight.shadow.mapSize.height = 1024;
@@ -1426,19 +1495,13 @@ function initThree() {
   dirLight.shadow.camera.bottom = -22;
   scene.add(dirLight);
 
-  // Bangun Diorama Dasar & Grid Kavling
   buildCityDiorama();
-
-  // Event Listeners Navigasi
   setupInputHandlers();
-
-  // Window Resize
   window.addEventListener('resize', onWindowResize);
 }
 
 function updateCameraPosition() {
-  // Posisi kamera isometrik ~45°
-  const angle = Math.PI / 4; // 45 derajat
+  const angle = Math.PI / 4;
   const camX = cameraTarget.x + cameraZoom * Math.cos(angle);
   const camY = cameraTarget.y + cameraZoom * 0.95;
   const camZ = cameraTarget.z + cameraZoom * Math.sin(angle);
@@ -1454,53 +1517,42 @@ function onWindowResize() {
   renderer.setSize(width, height);
 }
 
-// Konstruksi Diorama Kota Low-Poly
+// Konstruksi Diorama Kota dengan Resep Asset Generator
 function buildCityDiorama() {
   const { SIZE, CELL_SIZE, SPACING } = CONFIG.GRID;
   const totalSpan = SIZE * CELL_SIZE + (SIZE - 1) * SPACING;
   const dioramaWidth = totalSpan + 6.0;
 
-  // 1. Dasar Pulau Diorama (Bawah)
-  const baseGeo = new THREE.BoxGeometry(dioramaWidth, 1.8, dioramaWidth);
-  const baseMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-  const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-  baseMesh.position.y = -0.95;
-  baseMesh.receiveShadow = true;
+  // 1. Foundation Slab (Batu Fondasi Berundak)
+  const baseMat = std('#1e293b');
+  const baseMesh = box(dioramaWidth, 1.8, dioramaWidth, baseMat, 0, -0.95, 0);
   scene.add(baseMesh);
 
-  // 2. Lapisan Rumput / Paving Permukaan
-  const grassGeo = new THREE.BoxGeometry(dioramaWidth + 0.3, 0.4, dioramaWidth + 0.3);
-  const grassMat = new THREE.MeshLambertMaterial({ color: 0x2d5a3f });
-  const grassMesh = new THREE.Mesh(grassGeo, grassMat);
-  grassMesh.position.y = -0.18;
-  grassMesh.receiveShadow = true;
+  // 2. Lapisan Tanah/Paving Permukaan
+  const grassMat = std('#234e34');
+  const grassMesh = box(dioramaWidth + 0.3, 0.4, dioramaWidth + 0.3, grassMat, 0, -0.18, 0);
   scene.add(grassMesh);
 
-  // 3. Grid Kavling Tanah & Jalan
+  // 3. Grid Kavling Tanah & Jalan Raya Miniatur
   const halfSpan = totalSpan / 2 - (CELL_SIZE / 2);
+  const roadMat = std('#334155');
+  const curbMat = std('#475569');
 
   for (let gx = 0; gx < SIZE; gx++) {
     for (let gz = 0; gz < SIZE; gz++) {
       const posX = (gx * (CELL_SIZE + SPACING)) - halfSpan;
       const posZ = (gz * (CELL_SIZE + SPACING)) - halfSpan;
 
-      // Slab Kavling
+      // Slab Kavling Paving
       const plotGeo = new THREE.BoxGeometry(CELL_SIZE, 0.15, CELL_SIZE);
-      const plotMat = new THREE.MeshLambertMaterial({
-        color: 0x3f4d43,
-        transparent: true,
-        opacity: 0.95
-      });
+      const plotMat = std('#384c3c');
       const plotMesh = new THREE.Mesh(plotGeo, plotMat);
       plotMesh.position.set(posX, 0.08, posZ);
       plotMesh.receiveShadow = true;
       plotMesh.userData = { isPlot: true, gridX: gx, gridZ: gz };
 
-      // Border halus kavling
-      const borderGeo = new THREE.BoxGeometry(CELL_SIZE + 0.08, 0.05, CELL_SIZE + 0.08);
-      const borderMat = new THREE.MeshBasicMaterial({ color: 0x1f2922 });
-      const borderMesh = new THREE.Mesh(borderGeo, borderMat);
-      borderMesh.position.set(posX, 0.02, posZ);
+      // Curb / Pinggiran Paving
+      const borderMesh = box(CELL_SIZE + 0.1, 0.05, CELL_SIZE + 0.1, curbMat, posX, 0.02, posZ);
       scene.add(borderMesh);
 
       scene.add(plotMesh);
@@ -1508,40 +1560,89 @@ function buildCityDiorama() {
     }
   }
 
-  // 4. Dekorasi Pinggiran (Pohon Miniatur Low-Poly)
-  addLowPolyTrees(dioramaWidth);
+  // 4. Dekorasi Lingkungan (Pohon Pinus Layered, Oak Tree, Batu Faceted)
+  addProceduralEnvironment(dioramaWidth);
 }
 
-function addLowPolyTrees(dWidth) {
-  const treeTrunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 0.8, 5);
-  const treeFoliageGeo = new THREE.ConeGeometry(0.65, 1.4, 5);
-  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c4033 });
-  const foliageMat = new THREE.MeshLambertMaterial({ color: 0x1e6f42 });
-
+// Menambahkan Pohon & Batuan dengan Resep threejs-asset-generator
+function addProceduralEnvironment(dWidth) {
+  const rng = createRng(1234);
   const half = dWidth / 2 - 1.2;
-  const positions = [
-    [-half, -half], [half, -half], [-half, half], [half, half],
-    [-half, 0], [half, 0], [0, -half], [0, half]
+
+  // Resep Pembuatan Pohon Pinus Layered (dari pine-tree.js)
+  function createProceduralPine(height = 3.5, foliageColor = '#2f6b3a') {
+    const treeGroup = new THREE.Group();
+    const trunkH = height * 0.25;
+    const trunk = cyl(height * 0.035, height * 0.05, trunkH, 6, std('#5c4033'), 0, trunkH / 2, 0);
+    treeGroup.add(trunk);
+
+    const layers = 3;
+    const foliageH = height - trunkH * 0.6;
+    const layerH = (foliageH / layers) * 1.5;
+    const crowns = [];
+
+    for (let i = 0; i < layers; i++) {
+      const t = i / (layers - 1);
+      const radius = THREE.MathUtils.lerp(height * 0.26, height * 0.1, t);
+      const y = trunkH * 0.6 + t * (foliageH - layerH) + layerH / 2;
+      const mat = std(tint(foliageColor, { l: (t - 0.5) * 0.1 }));
+
+      const crown = new THREE.Group();
+      crown.position.y = y;
+      crown.rotation.y = rng.range(0, Math.PI * 2);
+      const geo = jitter(new THREE.ConeGeometry(radius, layerH, 7, 1), rng, radius * 0.06);
+      crown.add(new THREE.Mesh(geo, mat));
+      treeGroup.add(crown);
+      crowns.push(crown);
+    }
+    treeGroup.userData.crowns = crowns;
+    animatedFoliage.push(crowns);
+    return treeGroup;
+  }
+
+  // Resep Batu Boulder Faceted (dari rock.js)
+  function createProceduralRock(scale = 1.0) {
+    const rockMat = std('#64748b');
+    const geo = new THREE.IcosahedronGeometry(scale, 1);
+    geo.scale(1.1, 0.75, 1.0);
+    jitter(geo, rng, scale * 0.15);
+    const m = meshOf(geo, rockMat, 0, scale * 0.55, 0);
+    return m;
+  }
+
+  // Tempatkan pohon dan batuan di sekeliling pinggiran pulau
+  const envSlots = [
+    [-half, -half, 'pine'], [half, -half, 'pine'], [-half, half, 'pine'], [half, half, 'pine'],
+    [-half, 0, 'rock'], [half, 0, 'rock'], [0, -half, 'pine'], [0, half, 'pine'],
+    [-half + 2.5, -half, 'pine'], [half - 2.5, -half, 'rock'],
+    [-half, half - 2.5, 'rock'], [half, half - 2.5, 'pine']
   ];
 
-  positions.forEach(([x, z]) => {
-    const treeGroup = new THREE.Group();
-    const trunk = new THREE.Mesh(treeTrunkGeo, trunkMat);
-    trunk.position.y = 0.4;
-    trunk.castShadow = true;
+  envSlots.forEach(([x, z, type]) => {
+    if (type === 'pine') {
+      const pine = createProceduralPine(rng.range(3.0, 4.2), rng.pick(['#285e33', '#1e4b27', '#346d3c']));
+      pine.position.set(x, 0, z);
+      scene.add(pine);
+    } else {
+      const rock = createProceduralRock(rng.range(0.6, 1.0));
+      rock.position.set(x, 0, z);
+      scene.add(rock);
+    }
+  });
 
-    const foliage = new THREE.Mesh(treeFoliageGeo, foliageMat);
-    foliage.position.y = 1.3;
-    foliage.castShadow = true;
-
-    treeGroup.add(trunk);
-    treeGroup.add(foliage);
-    treeGroup.position.set(x, 0, z);
-    scene.add(treeGroup);
+  // Lampu Jalan Miniatur Klasik di Sudut
+  const lampPoleMat = std('#475569');
+  const lampGlowMat = glow('#fde047', 1.8);
+  [[-half + 1.2, -half + 1.2], [half - 1.2, half - 1.2]].forEach(([lx, lz]) => {
+    const lampGroup = new THREE.Group();
+    lampGroup.position.set(lx, 0, lz);
+    lampGroup.add(cyl(0.05, 0.08, 1.8, 6, lampPoleMat, 0, 0.9, 0));
+    lampGroup.add(box(0.3, 0.06, 0.06, lampPoleMat, 0.1, 1.8, 0));
+    lampGroup.add(sphere(0.12, 6, lampGlowMat, 0.22, 1.72, 0));
+    scene.add(lampGroup);
   });
 }
 
-// Input Handlers: Pan Drag, Scroll Zoom, Raycasting Selection
 function setupInputHandlers() {
   const container = document.getElementById('canvas-container');
 
@@ -1557,7 +1658,6 @@ function setupInputHandlers() {
       const dy = e.clientY - previousPointerPos.y;
       previousPointerPos = { x: e.clientX, y: e.clientY };
 
-      // Geser kamera searah pandangan 45°
       const panFactor = CONFIG.CAMERA.PAN_SPEED * (cameraZoom / 30);
       const angle = Math.PI / 4;
       const moveX = (-dx * Math.sin(angle) - dy * Math.cos(angle)) * panFactor;
@@ -1567,7 +1667,6 @@ function setupInputHandlers() {
       cameraTarget.z = Math.max(-25, Math.min(25, cameraTarget.z + moveZ));
       updateCameraPosition();
     } else {
-      // Hover Raycasting
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       checkHover();
@@ -1578,7 +1677,6 @@ function setupInputHandlers() {
     if (!isDraggingCamera) return;
     isDraggingCamera = false;
 
-    // Cek apakah aksi berupa klik biasa atau drag panjang
     const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
     if (dist < 6) {
       handleSceneClick(e);
@@ -1617,7 +1715,7 @@ function checkHover() {
 
 function resetPlotColor(plot) {
   const unit = getUnitAtGrid(plot.userData.gridX, plot.userData.gridZ);
-  plot.material.color.setHex(unit ? 0x2e3831 : 0x3f4d43);
+  plot.material.color.setHex(unit ? 0x2e3831 : 0x384c3c);
 }
 
 function handleSceneClick(e) {
@@ -1653,50 +1751,54 @@ function getGridWorldPosition(gx, gz) {
 }
 
 // ==========================================
-// 4. BUILDINGS (3D PROCEDURAL PRIMITIVES)
+// 4. BUILDINGS (RESEP THREEJS-ASSET-GENERATOR)
 // ==========================================
 function createBuildingMesh(unit) {
   const group = new THREE.Group();
-  const template = CONFIG.MEDIA_TYPES[unit.typeId];
   const pos = getGridWorldPosition(unit.gridX, unit.gridZ);
   group.position.copy(pos);
 
   const baseScaleY = 1.0 + (unit.level - 1) * 0.22;
+  const stoneMat = std('#475569');
+  const frameMat = std('#1e293b');
+  const glassDayMat = std('#7dd3fc', { roughness: 0.2, metalness: 0.2 });
 
   switch (unit.typeId) {
     case 'newspaper': {
-      // 1. Gedung Percetakan Koran: Bata merah, cerobong asap beranimasi
-      const bodyGeo = new THREE.BoxGeometry(2.3, 1.6, 2.3);
-      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xa84334 });
-      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-      bodyMesh.position.y = 0.8;
-      bodyMesh.castShadow = true;
-      group.add(bodyMesh);
+      // 1. Percetakan Koran: Fondasi batu, dinding bata gabled, cerobong bertingkat
+      // Fondasi
+      group.add(box(2.5, 0.25, 2.5, stoneMat, 0, 0.125, 0));
+      // Badan Pabrik Bata Merah
+      const brickMat = std('#991b1b');
+      group.add(box(2.3, 1.5, 2.3, brickMat, 0, 0.95, 0));
 
-      // Atap Pabrik
-      const roofGeo = new THREE.BoxGeometry(2.4, 0.35, 2.4);
-      const roofMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-      const roofMesh = new THREE.Mesh(roofGeo, roofMat);
-      roofMesh.position.y = 1.7;
-      group.add(roofMesh);
+      // Atap Gabled Saw-Tooth Industri
+      const roofProf = new THREE.Shape();
+      roofProf.moveTo(-1.25, 0);
+      roofProf.lineTo(1.25, 0);
+      roofProf.lineTo(0, 0.7);
+      roofProf.closePath();
+      const roofGeo = new THREE.ExtrudeGeometry(roofProf, { depth: 2.4, bevelEnabled: false });
+      roofGeo.translate(0, 0, -1.2);
+      const roofMat = std('#334155');
+      group.add(meshOf(roofGeo, roofMat, 0, 1.7, 0));
 
-      // Cerobong Asap
-      const chimneyGeo = new THREE.CylinderGeometry(0.2, 0.26, 2.0, 7);
-      const chimneyMat = new THREE.MeshLambertMaterial({ color: 0x782f25 });
-      const chimneyMesh = new THREE.Mesh(chimneyGeo, chimneyMat);
-      chimneyMesh.position.set(0.65, 1.8, 0.65);
-      chimneyMesh.castShadow = true;
-      group.add(chimneyMesh);
+      // Cerobong Asap Bata dengan Trim Cincin
+      const chimneyMat = std('#782f25');
+      group.add(cyl(0.22, 0.28, 2.2, 7, chimneyMat, 0.65, 1.9, 0.65));
+      group.add(cyl(0.26, 0.26, 0.15, 7, stoneMat, 0.65, 2.95, 0.65));
 
-      // Partikel Asap Miniatur (Animasi loop)
+      // Loading Bay / Pintu Masuk Pengiriman & Tumpukan Koran
+      group.add(box(0.8, 1.1, 0.1, frameMat, -0.4, 0.7, 1.16));
+      group.add(box(0.5, 0.35, 0.4, std('#fef08a'), 0.5, 0.3, 1.2)); // Palet kertas
+
+      // Partikel Asap Terpadu
       const smokeGroup = new THREE.Group();
-      smokeGroup.position.set(0.65, 2.8, 0.65);
+      smokeGroup.position.set(0.65, 3.1, 0.65);
       const smokePuffs = [];
       for (let i = 0; i < 3; i++) {
-        const puffGeo = new THREE.SphereGeometry(0.18 + i * 0.05, 5, 5);
-        const puffMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.65 });
-        const puff = new THREE.Mesh(puffGeo, puffMat);
-        puff.position.y = i * 0.4;
+        const puffMat = std('#e2e8f0', { transparent: true, opacity: 0.65 });
+        const puff = sphere(0.18 + i * 0.05, 5, puffMat, 0, i * 0.38, 0);
         smokeGroup.add(puff);
         smokePuffs.push(puff);
       }
@@ -1706,115 +1808,113 @@ function createBuildingMesh(unit) {
     }
 
     case 'magazine': {
-      // 2. Kantor Majalah: Gedung modis, jendela kaca, papan billboard
-      const bodyGeo = new THREE.BoxGeometry(2.1, 2.2, 2.1);
-      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
-      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-      bodyMesh.position.y = 1.1;
-      bodyMesh.castShadow = true;
-      group.add(bodyMesh);
+      // 2. Penerbit Majalah: Kantor Art-Deco Bertingkat, Strip Kaca, Billboard
+      group.add(box(2.4, 0.25, 2.4, stoneMat, 0, 0.125, 0));
+      // Tingkat 1
+      const officeMat = std('#f8fafc');
+      group.add(box(2.2, 1.3, 2.2, officeMat, 0, 0.85, 0));
+      // Tingkat 2 (Sedikit Menjorok Masuk)
+      group.add(box(1.9, 1.1, 1.9, officeMat, 0, 2.05, 0));
 
-      // Aksen Kaca
-      const glassGeo = new THREE.BoxGeometry(1.6, 1.4, 2.15);
-      const glassMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
-      const glassMesh = new THREE.Mesh(glassGeo, glassMat);
-      glassMesh.position.y = 1.2;
-      group.add(glassMesh);
+      // Jendela Kaca Horizontal
+      group.add(box(1.8, 0.45, 2.25, glassDayMat, 0, 0.95, 0));
+      group.add(box(1.5, 0.4, 1.95, glassDayMat, 0, 2.1, 0));
 
-      // Papan Billboard Majalah di Atap
-      const signBoardGeo = new THREE.BoxGeometry(1.4, 0.7, 0.15);
-      const signBoardMat = new THREE.MeshLambertMaterial({ color: 0xf43f5e });
-      const signMesh = new THREE.Mesh(signBoardGeo, signBoardMat);
-      signMesh.position.set(0, 2.65, 0);
-      group.add(signMesh);
+      // Kanopi Pintu Masuk
+      const canopyMat = std('#f43f5e');
+      group.add(box(1.0, 0.1, 0.5, canopyMat, 0, 0.6, 1.35));
+
+      // Billboard Majalah di Atap
+      const boardGroup = new THREE.Group();
+      boardGroup.position.set(0, 2.9, 0);
+      boardGroup.add(box(1.5, 0.8, 0.12, std('#ec4899'), 0, 0, 0));
+      boardGroup.add(box(1.6, 0.08, 0.14, frameMat, 0, 0.4, 0));
+      group.add(boardGroup);
       break;
     }
 
     case 'radio': {
-      // 3. Stasiun Radio: Bunker siaran, menara antena transmisi tinggi berkedip
-      const baseGeo = new THREE.BoxGeometry(2.1, 1.0, 2.1);
-      const baseMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
-      const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-      baseMesh.position.y = 0.5;
-      baseMesh.castShadow = true;
-      group.add(baseMesh);
+      // 3. Stasiun Radio: Bunker Penyiaran, Tiang Menara Transmisi Kisi-Kisi, Beacon Merah
+      group.add(box(2.3, 0.3, 2.3, stoneMat, 0, 0.15, 0));
+      const bunkerMat = std('#475569');
+      group.add(box(2.1, 1.0, 2.1, bunkerMat, 0, 0.75, 0));
 
-      // Tiang Antena Besi
-      const mastGeo = new THREE.CylinderGeometry(0.08, 0.35, 4.2, 5);
-      const mastMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
-      const mastMesh = new THREE.Mesh(mastGeo, mastMat);
-      mastMesh.position.y = 2.8;
-      mastMesh.castShadow = true;
-      group.add(mastMesh);
+      // Pintu Kedap Suara & Ventilasi
+      group.add(box(0.7, 0.85, 0.08, frameMat, 0, 0.65, 1.06));
+      group.add(box(0.6, 0.25, 0.08, std('#334155'), -0.6, 0.9, 1.06));
 
-      // Lampu Suar Merah Berkedip di Puncak
-      const beaconGeo = new THREE.SphereGeometry(0.18, 6, 6);
-      const beaconMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-      const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
-      beaconMesh.position.y = 4.95;
-      group.add(beaconMesh);
+      // Tiang Kisi-kisi Antena Pemancar (Mast Bertingkat)
+      const towerGroup = new THREE.Group();
+      towerGroup.position.set(0, 1.25, 0);
+      const steelMat = std('#94a3b8', { metalness: 0.4, roughness: 0.5 });
+      towerGroup.add(cyl(0.08, 0.35, 4.4, 6, steelMat, 0, 2.2, 0));
+      // Crossbars Antena
+      towerGroup.add(cyl(0.35, 0.35, 0.06, 6, steelMat, 0, 1.6, 0));
+      towerGroup.add(cyl(0.24, 0.24, 0.05, 6, steelMat, 0, 2.8, 0));
+      towerGroup.add(cyl(0.14, 0.14, 0.04, 6, steelMat, 0, 3.8, 0));
+
+      // Lampu Suar Merah Berkedip
+      const beaconMat = glow('#ef4444', 1.8);
+      const beaconMesh = sphere(0.18, 6, beaconMat, 0, 4.5, 0);
+      towerGroup.add(beaconMesh);
+      group.add(towerGroup);
       group.userData.beacon = beaconMesh;
       break;
     }
 
     case 'tv': {
-      // 4. Channel TV: Studio penyiaran modern, antena parabola berputar
-      const studioGeo = new THREE.BoxGeometry(2.5, 1.7, 2.2);
-      const studioMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-      const studioMesh = new THREE.Mesh(studioGeo, studioMat);
-      studioMesh.position.y = 0.85;
-      studioMesh.castShadow = true;
-      group.add(studioMesh);
+      // 4. Channel TV: Studio Soundstage Lengkung, Parabola Berputar, OB Van Parkir
+      group.add(box(2.6, 0.25, 2.4, stoneMat, 0, 0.125, 0));
+      const studioMat = std('#334155');
+      group.add(box(2.4, 1.6, 2.2, studioMat, 0, 0.95, 0));
 
-      // Kubah Studio TV
-      const domeGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.4, 8);
-      const domeMat = new THREE.MeshLambertMaterial({ color: 0x0284c7 });
-      const domeMesh = new THREE.Mesh(domeGeo, domeMat);
-      domeMesh.position.y = 1.9;
-      group.add(domeMesh);
+      // Atap Lengkung Studio
+      const archProf = new THREE.Shape();
+      archProf.absarc(0, 0, 1.2, 0, Math.PI, false);
+      const archGeo = new THREE.ExtrudeGeometry(archProf, { depth: 2.2, bevelEnabled: false });
+      archGeo.translate(0, 0, -1.1);
+      const archMat = std('#0284c7');
+      const archMesh = meshOf(archGeo, archMat, 0, 1.75, 0);
+      archMesh.scale.set(0.95, 0.45, 1.0);
+      group.add(archMesh);
 
-      // Antena Parabola di Atap (Berotasi halus)
+      // Antena Parabola Satelit Berputar
       const dishMount = new THREE.Group();
-      dishMount.position.set(0.6, 2.1, 0.5);
-
-      const dishArmGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.6, 4);
-      const dishArm = new THREE.Mesh(dishArmGeo, new THREE.MeshLambertMaterial({ color: 0x64748b }));
-      dishArm.position.y = 0.3;
-      dishMount.add(dishArm);
-
-      const dishGeo = new THREE.ConeGeometry(0.55, 0.3, 8);
-      const dishMesh = new THREE.Mesh(dishGeo, new THREE.MeshLambertMaterial({ color: 0xf8fafc }));
-      dishMesh.position.y = 0.6;
-      dishMesh.rotation.x = Math.PI / 3;
-      dishMount.add(dishMesh);
-
+      dishMount.position.set(0.65, 2.3, 0.4);
+      dishMount.add(cyl(0.06, 0.06, 0.5, 4, std('#64748b'), 0, 0.25, 0));
+      const dishDish = meshOf(new THREE.ConeGeometry(0.55, 0.25, 8), std('#f8fafc', { roughness: 0.4 }), 0, 0.55, 0);
+      dishDish.rotation.x = Math.PI / 3;
+      dishMount.add(dishDish);
       group.add(dishMount);
       group.userData.dish = dishMount;
+
+      // Miniature OB Van TV Parkir di Luar
+      const vanGroup = new THREE.Group();
+      vanGroup.position.set(-0.6, 0.3, 1.35);
+      vanGroup.add(box(0.55, 0.4, 0.9, std('#2563eb'), 0, 0.2, 0));
+      vanGroup.add(box(0.48, 0.25, 0.35, std('#1d4ed8'), 0, 0.35, 0.2));
+      group.add(vanGroup);
       break;
     }
 
     case 'online': {
-      // 5. Kanal Video Online: Studio kreator neon, ring-light raksasa
-      const loftGeo = new THREE.BoxGeometry(2.3, 2.0, 2.3);
-      const loftMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
-      const loftMesh = new THREE.Mesh(loftGeo, loftMat);
-      loftMesh.position.y = 1.0;
-      loftMesh.castShadow = true;
-      group.add(loftMesh);
+      // 5. Kanal Video Online: Studio Loft Modern, Tombol Play Merah, Ring Light Raksasa
+      group.add(box(2.5, 0.25, 2.5, stoneMat, 0, 0.125, 0));
+      const loftMat = std('#1e293b');
+      group.add(box(2.3, 1.9, 2.3, loftMat, 0, 1.1, 0));
 
-      // Logo Tombol Play Merah di Facade
-      const playLogoGeo = new THREE.ConeGeometry(0.35, 0.5, 3);
-      const playLogoMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
-      const playMesh = new THREE.Mesh(playLogoGeo, playLogoMat);
-      playMesh.position.set(0, 1.2, 1.2);
+      // Facade Kaca Modern
+      group.add(box(1.7, 1.4, 2.35, glassDayMat, 0, 1.15, 0));
+
+      // Logo Play Button Merah Bold
+      const playMat = std('#ef4444');
+      const playMesh = cone(0.35, 0.45, 3, playMat, 0, 1.25, 1.22);
       playMesh.rotation.z = -Math.PI / 2;
       group.add(playMesh);
 
-      // Ring Light Raksasa di Atap
-      const ringGeo = new THREE.TorusGeometry(0.65, 0.1, 6, 12);
-      const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-      ringMesh.position.set(0, 2.8, 0);
+      // Ring Light Raksasa di Atap (Berputar halus)
+      const ringMat = glow('#facc15', 1.6);
+      const ringMesh = meshOf(new THREE.TorusGeometry(0.65, 0.09, 6, 12), ringMat, 0, 2.8, 0);
       ringMesh.rotation.x = Math.PI / 4;
       group.add(ringMesh);
       group.userData.ringLight = ringMesh;
@@ -1822,50 +1922,50 @@ function createBuildingMesh(unit) {
     }
 
     case 'social': {
-      // 6. Konglomerasi Medsos: Pencakar langit futuristik dengan aksen neon
-      const towerGeo = new THREE.BoxGeometry(2.0, 3.6, 2.0);
-      const towerMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
-      const towerMesh = new THREE.Mesh(towerGeo, towerMat);
-      towerMesh.position.y = 1.8;
-      towerMesh.castShadow = true;
-      group.add(towerMesh);
+      // 6. Konglomerasi Medsos: Skyscraper Hexagonal/Faceted, Garis Neon, Kristal Data Melayang
+      group.add(box(2.4, 0.25, 2.4, stoneMat, 0, 0.125, 0));
+      const towerMat = std('#0f172a');
+      group.add(box(2.0, 3.6, 2.0, towerMat, 0, 1.9, 0));
 
-      // Garis Neon Glow Vertikal
-      const neonGeo = new THREE.BoxGeometry(0.12, 3.65, 2.05);
-      const neonMat = new THREE.MeshBasicMaterial({ color: 0xd946ef });
-      const neonMesh = new THREE.Mesh(neonGeo, neonMat);
-      neonMesh.position.y = 1.8;
-      group.add(neonMesh);
+      // Garis Neon Glowing Cyberpunk Vertikal
+      const neonMatA = glow('#d946ef', 1.5);
+      const neonMatB = glow('#06b6d4', 1.5);
+      group.add(box(0.1, 3.65, 2.05, neonMatA, 0.7, 1.9, 0));
+      group.add(box(2.05, 3.65, 0.1, neonMatB, 0, 1.9, 0.7));
 
-      // Jarum Spire & Kristal Data Melayang
-      const spireGeo = new THREE.CylinderGeometry(0.04, 0.15, 1.4, 5);
-      const spireMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
-      const spireMesh = new THREE.Mesh(spireGeo, spireMat);
-      spireMesh.position.y = 4.3;
-      group.add(spireMesh);
+      // Jarum Spire Transmisi
+      const spireMat = std('#94a3b8', { metalness: 0.5 });
+      group.add(cyl(0.04, 0.14, 1.5, 5, spireMat, 0, 4.4, 0));
 
-      const gemGeo = new THREE.OctahedronGeometry(0.28);
-      const gemMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
-      const gemMesh = new THREE.Mesh(gemGeo, gemMat);
-      gemMesh.position.y = 5.2;
+      // Kristal Data Octahedron Melayang
+      const gemMat = glow('#06b6d4', 1.8);
+      const gemMesh = meshOf(new THREE.OctahedronGeometry(0.28), gemMat, 0, 5.35, 0);
       group.add(gemMesh);
       group.userData.gem = gemMesh;
       break;
     }
   }
 
-  // Skala ketinggian berdasarkan level unit
   group.scale.y = baseScaleY;
-
   return group;
 }
 
-// Update Micro-animasi bangunan tiap frame
+// Update Micro-animasi bangunan & lingkungan tiap frame
 function updateBuildingAnimations(clockTime) {
+  // 1. Animasi Pohon Pinus (Goyangan Angin Alami - resep pine-tree.js)
+  animatedFoliage.forEach((crowns, treeIdx) => {
+    crowns.forEach((c, i) => {
+      const k = (i + 1) / crowns.length;
+      c.rotation.z = Math.sin(clockTime * 1.4 + treeIdx + i * 0.5) * 0.02 * k;
+      c.rotation.x = Math.cos(clockTime * 1.1 + treeIdx + i * 0.3) * 0.015 * k;
+    });
+  });
+
+  // 2. Animasi Bangunan Media
   gameState.units.forEach(unit => {
     if (!unit.mesh) return;
 
-    // 1. Asap cerobong koran
+    // Asap cerobong koran
     if (unit.mesh.userData.smokePuffs) {
       unit.mesh.userData.smokePuffs.forEach((puff, idx) => {
         puff.position.y = ((clockTime * 0.8 + idx * 0.4) % 1.2);
@@ -1874,31 +1974,30 @@ function updateBuildingAnimations(clockTime) {
       });
     }
 
-    // 2. Beacon radio berkedip
+    // Beacon radio berkedip
     if (unit.mesh.userData.beacon) {
       const blink = Math.sin(clockTime * 7) > 0 ? 1 : 0.2;
       unit.mesh.userData.beacon.material.opacity = blink;
     }
 
-    // 3. Parabola TV berotasi perlahan
+    // Parabola TV berotasi perlahan
     if (unit.mesh.userData.dish) {
       unit.mesh.userData.dish.rotation.y = clockTime * 0.4;
     }
 
-    // 4. Ring light kreator berdenyut
+    // Ring light kreator berdenyut
     if (unit.mesh.userData.ringLight) {
       unit.mesh.userData.ringLight.rotation.z = clockTime * 0.6;
     }
 
-    // 5. Permata medsos melayang dan berputar
+    // Permata medsos melayang dan berputar
     if (unit.mesh.userData.gem) {
       unit.mesh.userData.gem.rotation.y = clockTime * 1.5;
-      unit.mesh.userData.gem.position.y = 5.2 + Math.sin(clockTime * 3) * 0.15;
+      unit.mesh.userData.gem.position.y = 5.35 + Math.sin(clockTime * 3) * 0.15;
     }
   });
 }
 
-// Transisi Atmosfer Halus per Era
 function updateEraAtmosphere() {
   const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
   if (!currentEra) return;
@@ -1919,7 +2018,7 @@ function tickGame(deltaSeconds) {
   if (gameState.speed === 0 || gameState.gameEnded) return;
 
   dayTimer += deltaSeconds * gameState.speed;
-  const secondsPerDay = 1.0; // 1s = 1 hari pada 1x
+  const secondsPerDay = 1.0;
 
   if (dayTimer >= secondsPerDay) {
     dayTimer -= secondsPerDay;
@@ -1930,14 +2029,12 @@ function tickGame(deltaSeconds) {
 function advanceDay() {
   gameState.day++;
 
-  // Cek Event Acak
   gameState.nextEventInDays--;
   if (gameState.nextEventInDays <= 0) {
-    gameState.nextEventInDays = Math.floor(35 + Math.random() * 30); // Tiap 1-2 bulan
+    gameState.nextEventInDays = Math.floor(35 + Math.random() * 30);
     triggerRandomEvent();
   }
 
-  // Pergantian Bulan (Tiap 30 Hari)
   if (gameState.day > CONFIG.DAYS_PER_MONTH) {
     gameState.day = 1;
     advanceMonth();
@@ -1953,16 +2050,9 @@ function advanceMonth() {
     gameState.year++;
   }
 
-  // Hitung Finansial & Dinamika Audiens Seluruh Unit
   processMonthlyEconomy();
-
-  // Update Pertumbuhan Pesaing AI
   updateCompetitors();
-
-  // Evaluasi Kondisi Menang / Kalah
   evaluateWinLoss();
-
-  // Auto-Save
   saveGame();
 }
 
@@ -1972,7 +2062,6 @@ function processMonthlyEconomy() {
   let totalOpCosts = 0;
   let totalAudience = 0;
 
-  // Cek Bonus Sinergi Lintas Media
   const distinctTypes = new Set(gameState.units.map(u => u.typeId)).size;
   let synergyMult = 1.0;
   if (distinctTypes >= 2) synergyMult = 1.10;
@@ -1980,18 +2069,15 @@ function processMonthlyEconomy() {
   if (distinctTypes >= 4) synergyMult = 1.35;
   if (distinctTypes >= 5) synergyMult = 1.50;
 
-  // Riset Sinergi Satelit
   if (gameState.completedResearch.includes('res_satelit')) {
     synergyMult *= 1.35;
   }
 
-  // Riset Efisiensi Biaya Sindikasi
   const opCostMult = gameState.completedResearch.includes('res_sindikasi') ? 0.85 : 1.0;
 
   gameState.units.forEach(unit => {
     const template = CONFIG.MEDIA_TYPES[unit.typeId];
     
-    // 1. Hitung Pengaruh Staf
     let qualityStaff = 1.0;
     let audStaff = 1.0;
     let adStaff = 1.0;
@@ -2008,32 +2094,27 @@ function processMonthlyEconomy() {
     }
     totalSalaries += staffSalaries;
 
-    // 2. Hitung Pengaruh Slider Alokasi
     const qRatio = unit.qualityAlloc / 100;
     const kRatio = unit.quantityAlloc / 100;
     const adRatio = unit.adAlloc / 100;
 
-    // Pertumbuhan audiens per bulan
     const baseGrowth = (kRatio * 0.25) + (qRatio * 0.15);
     let adFatiguePenalty = 0;
     if (adRatio > 0.45) {
-      adFatiguePenalty = (adRatio - 0.45) * 0.4; // Penalti kejenuhan iklan
+      adFatiguePenalty = (adRatio - 0.45) * 0.4;
     }
 
     const netGrowthFactor = (1.0 + baseGrowth - adFatiguePenalty) * audStaff * synergyMult;
     unit.audience = Math.round(Math.max(500, unit.audience * netGrowthFactor));
     totalAudience += unit.audience;
 
-    // 3. Pendapatan (Iklan + Penjualan)
     const revPerUser = template.baseRevPerAud * (0.8 + (unit.level - 1) * 0.25);
     const unitGrossRevenue = Math.round(unit.audience * revPerUser * (0.5 + adRatio) * adStaff);
     grossRevenue += unitGrossRevenue;
 
-    // 4. Biaya Operasional
     const unitOpCost = Math.round(template.baseOpCost * (1.0 + (unit.level - 1) * 0.35) * opCostMult);
     totalOpCosts += unitOpCost;
 
-    // Munculkan teks melayang "+Rp..." jika unit menghasilkan uang
     const profitUnit = unitGrossRevenue - unitOpCost - staffSalaries;
     if (profitUnit > 0) {
       const worldPos = getGridWorldPosition(unit.gridX, unit.gridZ);
@@ -2046,7 +2127,6 @@ function processMonthlyEconomy() {
   gameState.monthlyNetProfit = netProfit;
   gameState.totalAudience = totalAudience;
 
-  // Catat Laporan
   gameState.lastReport = {
     grossRevenue,
     staffSalaries,
@@ -2055,7 +2135,6 @@ function processMonthlyEconomy() {
     totalAudience
   };
 
-  // Toast Notifikasi Finansial Singkat
   if (netProfit >= 0) {
     showToast(`Bulan ${gameState.month}: Laba Bersih ${formatRupiah(netProfit)}!`, 'success');
   } else {
@@ -2063,22 +2142,15 @@ function processMonthlyEconomy() {
   }
 }
 
-// Simulasi Audiens Pesaing AI
 function updateCompetitors() {
-  const currentEra = CONFIG.ERAS.find(e => e.id === gameState.eraId);
-
   gameState.competitors.forEach(comp => {
     let growthRate = 0.02 + Math.random() * 0.03;
 
-    // Karakteristik Pesaing
     if (comp.id === "comp_1") {
-      // Nusantara Post: Kuat di era 1-3, melambat di era 5-6
       growthRate = gameState.eraId <= 3 ? 0.05 : 0.015;
     } else if (comp.id === "comp_2") {
-      // Global Surya: Meledak di TV & Radio
       growthRate = (gameState.eraId === 3 || gameState.eraId === 4) ? 0.06 : 0.025;
     } else if (comp.id === "comp_3") {
-      // ByteViral: Lambat di awal, meroket di era 5-6
       growthRate = gameState.eraId >= 5 ? 0.08 : 0.01;
     }
 
@@ -2087,7 +2159,6 @@ function updateCompetitors() {
 }
 
 function evaluateWinLoss() {
-  // Cek Kondisi Kalah 1: Kas minus 2 bulan berturut-turut
   if (gameState.cash < 0) {
     gameState.consecutiveNegativeCashMonths++;
     if (gameState.consecutiveNegativeCashMonths >= 2) {
@@ -2098,13 +2169,11 @@ function evaluateWinLoss() {
     gameState.consecutiveNegativeCashMonths = 0;
   }
 
-  // Cek Kondisi Kalah 2: Reputasi hancur 0
   if (gameState.reputation <= 0) {
     triggerGameOver("Krisis Moral & Boikot Massal!", "Reputasi pers Anda telah menyentuh angka 0. Publik menolak membaca media Anda.");
     return;
   }
 
-  // Cek Kondisi Menang: Era Sosial Media + Posisi #1 Market Share selama 12 bulan
   const rank = getPlayerMarketRank();
   if (gameState.eraId === 6 && rank === 1) {
     gameState.consecutiveWinMonths++;
@@ -2126,7 +2195,6 @@ function getPlayerMarketRank() {
   return all.findIndex(item => item.isPlayer) + 1;
 }
 
-// Beli / Bangun Unit Baru
 function buildUnit(typeId, gridX, gridZ) {
   const template = CONFIG.MEDIA_TYPES[typeId];
   if (!template) return;
@@ -2163,7 +2231,6 @@ function buildUnit(typeId, gridX, gridZ) {
   saveGame();
 }
 
-// Upgrade Unit ke Level Berikutnya
 function upgradeUnit(unit) {
   if (unit.level >= 5) {
     showToast("Unit sudah mencapai Level Maksimal (Lv 5)!", "warn");
@@ -2182,7 +2249,6 @@ function upgradeUnit(unit) {
   unit.level++;
   unit.audience = Math.round(unit.audience * 1.35);
 
-  // Perbarui Mesh 3D dengan ketinggian baru
   if (unit.mesh) scene.remove(unit.mesh);
   unit.mesh = createBuildingMesh(unit);
   scene.add(unit.mesh);
@@ -2193,7 +2259,6 @@ function upgradeUnit(unit) {
   saveGame();
 }
 
-// Hancurkan / Jual Unit
 function demolishUnit(unit) {
   if (!confirm(`Apakah Anda yakin ingin menjual/menghancurkan ${unit.name}? Anda mendapat refund 50% nilai aset.`)) return;
 
@@ -2210,7 +2275,6 @@ function demolishUnit(unit) {
   saveGame();
 }
 
-// Rekrut / Pecat Staf
 function changeStaff(unit, staffKey, delta) {
   const sDef = CONFIG.STAFF_TYPES[staffKey];
   if (!sDef) return;
@@ -2223,7 +2287,6 @@ function changeStaff(unit, staffKey, delta) {
   saveGame();
 }
 
-// Jalankan Riset
 function purchaseResearch(nodeId) {
   const node = CONFIG.RESEARCH_NODES.find(n => n.id === nodeId);
   if (!node || gameState.completedResearch.includes(nodeId)) return;
@@ -2236,7 +2299,6 @@ function purchaseResearch(nodeId) {
   gameState.cash -= node.cost;
   gameState.completedResearch.push(nodeId);
 
-  // Terapkan Efek Langsung
   if (node.effect.repBonus) {
     gameState.reputation = Math.min(100, gameState.reputation + node.effect.repBonus);
   }
@@ -2247,12 +2309,10 @@ function purchaseResearch(nodeId) {
   saveGame();
 }
 
-// Membuka Era Berikutnya
 function advanceToNextEra() {
   const nextEra = CONFIG.ERAS.find(e => e.id === gameState.eraId + 1);
   if (!nextEra) return;
 
-  // Cek Persyaratan
   if (nextEra.reqResearch && !gameState.completedResearch.includes(nextEra.reqResearch)) {
     const resNode = CONFIG.RESEARCH_NODES.find(n => n.id === nextEra.reqResearch);
     showToast(`Perlu menyelesaikan riset: "${resNode ? resNode.name : nextEra.reqResearch}"!`, 'warn');
@@ -2298,7 +2358,6 @@ function updateHUD() {
   document.getElementById('hud-date').textContent = `Tahun ${gameState.year} • Bulan ${gameState.month}, Hari ${gameState.day}`;
   document.getElementById('hud-era').textContent = `${currentEra.name} (${gameState.year})`;
 
-  // Count riset yang siap dibeli
   const availCount = CONFIG.RESEARCH_NODES.filter(n => {
     if (gameState.completedResearch.includes(n.id)) return false;
     if (n.reqId && !gameState.completedResearch.includes(n.reqId)) return false;
@@ -2307,7 +2366,6 @@ function updateHUD() {
   document.getElementById('res-available-count').textContent = availCount;
 }
 
-// Modal: Bangun Unit Baru
 function openBuildModal(gridX, gridZ) {
   const container = document.getElementById('build-options-container');
   container.innerHTML = '';
@@ -2333,7 +2391,6 @@ function openBuildModal(gridX, gridZ) {
     container.appendChild(card);
   });
 
-  // Tampilkan unit era berikutnya sebagai locked info
   const lockedTypes = Object.values(CONFIG.MEDIA_TYPES).filter(t => t.eraId > gameState.eraId);
   lockedTypes.forEach(template => {
     const eraInfo = CONFIG.ERAS.find(e => e.id === template.eraId);
@@ -2352,7 +2409,6 @@ function openBuildModal(gridX, gridZ) {
   openModal('modal-build');
 }
 
-// Modal: Kelola Unit
 function openUnitModal(unit) {
   activeSelectedUnit = unit;
   updateUnitModalUI(unit);
@@ -2366,7 +2422,6 @@ function updateUnitModalUI(unit) {
   document.getElementById('unit-stat-level').textContent = `Level ${unit.level}`;
   document.getElementById('unit-stat-aud').textContent = formatNumber(unit.audience);
 
-  // Estimasi pendapatan & biaya
   const adRatio = unit.adAlloc / 100;
   let adStaff = 1.0;
   let staffSal = 0;
@@ -2383,7 +2438,6 @@ function updateUnitModalUI(unit) {
   document.getElementById('unit-stat-rev').textContent = formatRupiah(estRev);
   document.getElementById('unit-stat-cost').textContent = formatRupiah(estCost);
 
-  // Sliders
   document.getElementById('slider-quality').value = unit.qualityAlloc;
   document.getElementById('slider-quantity').value = unit.quantityAlloc;
   document.getElementById('slider-ads').value = unit.adAlloc;
@@ -2391,7 +2445,6 @@ function updateUnitModalUI(unit) {
   document.getElementById('val-slider-quantity').textContent = unit.quantityAlloc;
   document.getElementById('val-slider-ads').textContent = unit.adAlloc;
 
-  // Render Tabel Staf
   const tbody = document.getElementById('unit-staff-tbody');
   tbody.innerHTML = '';
   Object.entries(CONFIG.STAFF_TYPES).forEach(([stKey, sDef]) => {
@@ -2410,7 +2463,6 @@ function updateUnitModalUI(unit) {
     tbody.appendChild(tr);
   });
 
-  // Tombol Upgrade
   const nextLvl = unit.level + 1;
   const upgradeCost = Math.round(template.cost * 0.7 * unit.level);
   document.getElementById('upgrade-target-level').textContent = nextLvl <= 5 ? nextLvl : "Maks";
@@ -2419,7 +2471,6 @@ function updateUnitModalUI(unit) {
   document.getElementById('btn-demolish-unit').onclick = () => demolishUnit(unit);
 }
 
-// Modal: Riset
 function renderResearchTree() {
   const container = document.getElementById('research-nodes-container');
   container.innerHTML = '';
@@ -2449,7 +2500,6 @@ function renderResearchTree() {
   });
 }
 
-// Modal: Pasar & Pesaing
 function renderMarketShare() {
   const list = document.getElementById('market-competitors-list');
   list.innerHTML = '';
@@ -2481,13 +2531,11 @@ function renderMarketShare() {
 
   document.getElementById('market-win-tracker').textContent = `${gameState.consecutiveWinMonths} / 12 Bulan`;
 
-  // Sinergi status
   const distinctTypes = new Set(gameState.units.map(u => u.typeId)).size;
   document.getElementById('synergy-status-text').textContent =
     `Anda memiliki ${distinctTypes} tipe media berbeda. Bonus audiens aktif: +${distinctTypes >= 2 ? (distinctTypes * 10) : 0}%.`;
 }
 
-// Modal: Laporan Finansial Bulanan
 function renderFinancialReport() {
   const r = gameState.lastReport;
   const content = document.getElementById('report-content');
@@ -2520,7 +2568,6 @@ function renderFinancialReport() {
   `;
 }
 
-// Modal: Garis Waktu Era
 function renderEraInfo() {
   const content = document.getElementById('era-info-content');
   content.innerHTML = '';
@@ -2836,8 +2883,6 @@ const EVENTS_LIST = [
 
 function triggerRandomEvent() {
   const evt = EVENTS_LIST[Math.floor(Math.random() * EVENTS_LIST.length)];
-  
-  // Jeda sementara
   const savedSpeed = gameState.speed;
   gameState.speed = 0;
 
@@ -2906,7 +2951,6 @@ function triggerGameOver(reasonTitle, reasonDesc) {
   openModal('modal-endgame');
 }
 
-// Helpers Modal & Toast
 function openModal(id) {
   document.getElementById(id).classList.add('active');
 }
@@ -2932,7 +2976,6 @@ function showFloatingMoney(text, worldPos) {
   v.y += 3.2;
   v.project(camera);
 
-  // Jika di luar layar
   if (v.z > 1) return;
 
   const x = (v.x * 0.5 + 0.5) * window.innerWidth;
@@ -2951,7 +2994,6 @@ function showFloatingMoney(text, worldPos) {
   }, 1600);
 }
 
-// Sliders Event Handlers
 function setupSliderHandlers() {
   const sQ = document.getElementById('slider-quality');
   const sK = document.getElementById('slider-quantity');
@@ -2974,7 +3016,6 @@ function setupSliderHandlers() {
   sA.oninput = onSliderChange;
 }
 
-// Setup Tombol HUD Bawah & Kecepatan
 function setupUIButtons() {
   document.getElementById('btn-speed-0').onclick = () => setSpeed(0);
   document.getElementById('btn-speed-1').onclick = () => setSpeed(1);
@@ -3024,28 +3065,22 @@ function animate(currentTime) {
   const delta = (currentTime - lastTime) / 1000;
   lastTime = currentTime;
 
-  // Jalankan Logika Waktu Game
   tickGame(delta);
 
-  // Animasi Three.js & Atmosfer
   const elapsedTime = clock.getElapsedTime();
   updateBuildingAnimations(elapsedTime);
   updateEraAtmosphere();
 
-  // Render Scene
   renderer.render(scene, camera);
 }
 
-// Inisialisasi Saat Dokumen Siap
 window.addEventListener('DOMContentLoaded', () => {
   initThree();
   setupUIButtons();
   setupSliderHandlers();
 
-  // Muat state yang tersimpan jika ada
   const hasLoaded = loadGame();
   if (!hasLoaded) {
-    // Game Baru: Buat 1 unit koran pertama otomatis di kavling tengah untuk menyambut pemain
     const initUnit = {
       id: "unit_starter",
       gridX: 2,
