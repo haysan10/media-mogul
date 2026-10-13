@@ -1,0 +1,20 @@
+{
+  "name": "media-mogul",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Procedural three.js game assets (generated with the threejs-asset-generator skill).",
+  "scripts": {
+    "new": "node tools/new-asset.mjs",
+    "registry": "node tools/build-registry.mjs",
+    "validate": "node tools/build-registry.mjs && node tools/validate.mjs",
+    "serve": "node tools/build-registry.mjs && node tools/serve.mjs",
+    "export": "node tools/export-glb.mjs"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

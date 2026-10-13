@@ -1,0 +1,268 @@
+[
+  {
+    "id": "koran-percetakan",
+    "name": "Percetakan Koran",
+    "category": "buildings",
+    "tags": [
+      "era-1",
+      "koran",
+      "percetakan",
+      "industri"
+    ],
+    "description": "Gudang percetakan koran era awal dengan cerobong asap dan tumpukan kertas koran.",
+    "triangleBudget": 2200,
+    "defaultState": "idle",
+    "defaults": {
+      "seed": 1,
+      "level": 1,
+      "wallColor": "#b08d5b",
+      "scale": 1
+    },
+    "options": {
+      "seed": {
+        "type": "number",
+        "min": 0,
+        "max": 9999,
+        "step": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "wallColor": {
+        "type": "color"
+      },
+      "scale": {
+        "type": "number",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.05
+      }
+    },
+    "file": "./library/buildings/koran-percetakan.js"
+  },
+  {
+    "id": "kreator-kantor",
+    "name": "Kantor Kreator",
+    "category": "buildings",
+    "tags": [
+      "era-5",
+      "kreator",
+      "youtube",
+      "video-online",
+      "modern"
+    ],
+    "description": "Studio kantor kreator konten online dengan ring light neon ikonik dan kaca fasad besar.",
+    "triangleBudget": 2200,
+    "defaultState": "idle",
+    "defaults": {
+      "seed": 1,
+      "level": 1,
+      "wallColor": "#2b2d35",
+      "scale": 1
+    },
+    "options": {
+      "seed": {
+        "type": "number",
+        "min": 0,
+        "max": 9999,
+        "step": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "wallColor": {
+        "type": "color"
+      },
+      "scale": {
+        "type": "number",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.05
+      }
+    },
+    "file": "./library/buildings/kreator-kantor.js"
+  },
+  {
+    "id": "majalah-kantor",
+    "name": "Kantor Majalah",
+    "category": "buildings",
+    "tags": [
+      "era-2",
+      "majalah",
+      "kantor",
+      "mid-century"
+    ],
+    "description": "Kantor penerbit majalah bertingkat dengan fasad jendela grid kaca dan papan reklame atap.",
+    "triangleBudget": 2400,
+    "defaultState": "idle",
+    "defaults": {
+      "seed": 1,
+      "level": 1,
+      "wallColor": "#bfa888",
+      "scale": 1
+    },
+    "options": {
+      "seed": {
+        "type": "number",
+        "min": 0,
+        "max": 9999,
+        "step": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "wallColor": {
+        "type": "color"
+      },
+      "scale": {
+        "type": "number",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.05
+      }
+    },
+    "file": "./library/buildings/majalah-kantor.js"
+  },
+  {
+    "id": "radio-menara",
+    "name": "Menara Radio",
+    "category": "buildings",
+    "tags": [
+      "era-3",
+      "radio",
+      "menara",
+      "broadcasting"
+    ],
+    "description": "Menara pemancar siaran radio dengan menara kisi baja berundak dan lampu suar berkedip.",
+    "triangleBudget": 2200,
+    "defaultState": "idle",
+    "defaults": {
+      "seed": 1,
+      "level": 1,
+      "metalColor": "#cc3b3b",
+      "scale": 1
+    },
+    "options": {
+      "seed": {
+        "type": "number",
+        "min": 0,
+        "max": 9999,
+        "step": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "metalColor": {
+        "type": "color"
+      },
+      "scale": {
+        "type": "number",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.05
+      }
+    },
+    "file": "./library/buildings/radio-menara.js"
+  },
+  {
+    "id": "sosmed-gedung",
+    "name": "Gedung Media Sosial",
+    "category": "buildings",
+    "tags": [
+      "era-6",
+      "sosial-media",
+      "gedung",
+      "skyscraper",
+      "neon"
+    ],
+    "description": "Pencakar langit modern kantor pusat media sosial dengan fasad kaca elegan dan strip neon RGB.",
+    "triangleBudget": 2800,
+    "defaultState": "idle",
+    "defaults": {
+      "seed": 1,
+      "level": 1,
+      "glassColor": "#1e293b",
+      "scale": 1
+    },
+    "options": {
+      "seed": {
+        "type": "number",
+        "min": 0,
+        "max": 9999,
+        "step": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "glassColor": {
+        "type": "color"
+      },
+      "scale": {
+        "type": "number",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.05
+      }
+    },
+    "file": "./library/buildings/sosmed-gedung.js"
+  },
+  {
+    "id": "tv-studio",
+    "name": "Studio TV",
+    "category": "buildings",
+    "tags": [
+      "era-4",
+      "tv",
+      "studio",
+      "broadcast"
+    ],
+    "description": "Studio televisi berpanel akustik dengan antena parabola satelit berputar dan lampu ON AIR.",
+    "triangleBudget": 2400,
+    "defaultState": "idle",
+    "defaults": {
+      "seed": 1,
+      "level": 1,
+      "studioColor": "#3d4451",
+      "scale": 1
+    },
+    "options": {
+      "seed": {
+        "type": "number",
+        "min": 0,
+        "max": 9999,
+        "step": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 1,
+        "max": 5,
+        "step": 1
+      },
+      "studioColor": {
+        "type": "color"
+      },
+      "scale": {
+        "type": "number",
+        "min": 0.5,
+        "max": 2,
+        "step": 0.05
+      }
+    },
+    "file": "./library/buildings/tv-studio.js"
+  }
+]

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Media Mogul — Tycoon Simulasi Kerajaan Media 3D</title>
+  
+  <!-- Import map: Three.js r160.0 & Addons (versi terkunci sesuai package.json) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="./src/ui/styles.css">
+</head>
+<body>
+  <!-- Container untuk Three.js WebGL Canvas -->
+  <div id="canvas-container"></div>
+
+  <!-- Container untuk Antarmuka UI Glassmorphism -->
+  <div id="ui-root"></div>
+
+  <!-- Fallback Error Card jika koneksi CDN Three.js bermasalah -->
+  <div id="cdn-error-card" style="display: none;">
+    <h3 style="color: #f87171; margin-bottom: 8px;">Koneksi Library Three.js Gagal</h3>
+    <p style="font-size: 13px; line-height: 1.5;">Browser tidak dapat mengunduh library Three.js dari CDN jsDelivr. Pastikan perangkat Anda terhubung ke internet untuk memuat modul 3D.</p>
+  </div>
+
+  <script>
+    // Deteksi dini kegagalan koneksi CDN
+    window.addEventListener('error', function(e) {
+      if (e.message && (e.message.includes('three') || e.message.includes('Failed to fetch') || e.message.includes('importmap'))) {
+        const errCard = document.getElementById('cdn-error-card');
+        if (errCard) errCard.style.display = 'block';
+      }
+    });
+  </script>
+
+  <!-- Entry Point Game Engine -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
