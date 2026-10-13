@@ -197,13 +197,34 @@ class GameApp {
         this.world.setSelectedPlot(null);
         this.ui.update(gameState);
       },
+      onPlotSelect: (plotId) => {
+        gameState.selectedPlotId = plotId;
+        this.world.setSelectedPlot(plotId);
+        if (plotId !== null && plotId !== undefined) {
+          const plot = gameState.plots[plotId];
+          if (plot && plot.unit) {
+            this.ui.setActiveTab('unit');
+          } else {
+            this.ui.setActiveTab('build');
+          }
+        }
+        this.ui.update(gameState);
+      },
       onOnboardingComplete: () => {
         gameState.isFirstTimeOnboarding = false;
+        if (gameState.selectedPlotId === null || gameState.selectedPlotId === undefined) {
+          gameState.selectedPlotId = 0;
+          this.world.setSelectedPlot(0);
+        }
+        this.ui.setActiveTab('build');
+        this.ui.update(gameState);
         saveGame();
       },
     });
 
     window.__uiManager = this.ui; // Expose untuk pintasan tombol UI inline
+    window.__gameState = gameState;
+    window.__gameApp = this;
   }
 
   initControls() {
@@ -218,8 +239,8 @@ class GameApp {
   }
 
   handleCanvasTap(clientX, clientY) {
-    const hit = this.buildingManager.raycastPlots(clientX, clientY, this.camera, this.world.plotMeshes);
-    if (hit) {
+    const hit = this.buildingManager.raycastPlots(clientX, clientY, this.camera, this.world.plotMeshes, this.renderer.domElement);
+    if (hit && hit.plotId !== undefined && hit.plotId !== null) {
       gameState.selectedPlotId = hit.plotId;
       this.world.setSelectedPlot(hit.plotId);
 
@@ -250,8 +271,8 @@ class GameApp {
 
   handleCanvasHover(clientX, clientY) {
     if (window.innerWidth < 768) return; // Nonaktifkan hover di layar sentuh mobile
-    const hit = this.buildingManager.raycastPlots(clientX, clientY, this.camera, this.world.plotMeshes);
-    this.world.setHoverPlot(hit ? hit.plotId : null);
+    const hit = this.buildingManager.raycastPlots(clientX, clientY, this.camera, this.world.plotMeshes, this.renderer.domElement);
+    this.world.setHoverPlot(hit && hit.plotId !== undefined ? hit.plotId : null);
   }
 
   setupResize() {

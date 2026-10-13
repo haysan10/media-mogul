@@ -545,7 +545,23 @@ export class UIManager {
     let html = `
       <div class="pane-header">
         <h3>SCREEN #4: Menu Konstruksi Unit</h3>
-        <p class="text-muted">${selectedPlot ? `Kavling #${selectedPlotId + 1} Terpilih (${selectedPlot.unit ? 'Sudah Terisi' : 'Siap Bangun'})` : 'Pilih kavling tanah di peta 3D untuk memulai konstruksi.'}</p>
+        <p class="text-muted">${selectedPlot ? `Kavling #${selectedPlotId + 1} Terpilih (${selectedPlot.unit ? 'Sudah Terisi' : 'Siap Bangun'})` : 'Pilih kavling tanah di peta 3D atau lewat menu di bawah.'}</p>
+      </div>
+
+      <!-- Quick Plot Selector -->
+      <div class="card p-2 mb-3">
+        <div class="d-flex justify-between align-center mb-1">
+          <label class="text-xs font-bold">📍 Kavling Tanah Terpilih:</label>
+          <span class="text-xs text-muted">Bisa klik peta 3D langsung</span>
+        </div>
+        <select id="select-active-plot" class="styled-select">
+          <option value="" ${selectedPlotId === null ? 'selected' : ''}>-- Belum Memilih Kavling --</option>
+          ${gameState.plots.map((p) => `
+            <option value="${p.id}" ${p.id === selectedPlotId ? 'selected' : ''}>
+              Kavling #${p.id + 1} ${p.unit ? `[${p.unit.name} - Lvl ${p.unit.level}]` : '[Kosong - Siap Bangun]'}
+            </option>
+          `).join('')}
+        </select>
       </div>
     `;
 
@@ -597,6 +613,17 @@ export class UIManager {
     html += `</div>`;
 
     pane.innerHTML = html;
+
+    // Bind dropdown change
+    pane.querySelector('#select-active-plot')?.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val === '') {
+        if (this.callbacks.onPlotSelect) this.callbacks.onPlotSelect(null);
+      } else {
+        const pId = Number(val);
+        if (this.callbacks.onPlotSelect) this.callbacks.onPlotSelect(pId);
+      }
+    });
 
     pane.querySelectorAll('.btn-build').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -904,7 +931,7 @@ export class UIManager {
         <div class="competitor-row player-row">
           <div>
             <strong>Kerajaan Mediamu</strong>
-            <span class="text-xs text-muted d-block">${gameState.totalAudience.toLocaleString()} Pemirsa</span>
+            <span class="text-xs text-muted d-block">${(gameState.totalAudience || 0).toLocaleString()} Pemirsa</span>
           </div>
           <span class="market-pct">${gameState.playerMarketShare}%</span>
         </div>

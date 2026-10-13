@@ -481,6 +481,22 @@ canvas {
   accent-color: var(--accent);
 }
 
+.styled-select {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.95);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.styled-select:focus {
+  border-color: var(--accent);
+}
+
 /* Progress bar */
 .progress-bar-bg {
   width: 100%;
@@ -614,8 +630,12 @@ canvas {
   transition: opacity 0.2s ease;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .modal-overlay.hidden {
-  display: none;
+  display: none !important;
 }
 
 .modal-card {

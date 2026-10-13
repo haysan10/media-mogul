@@ -68,7 +68,11 @@ export class CameraControls {
 
   onPointerDown(e) {
     if (e.target !== this.domElement) return;
-    this.domElement.setPointerCapture(e.pointerId);
+    try {
+      if (this.domElement.setPointerCapture) {
+        this.domElement.setPointerCapture(e.pointerId);
+      }
+    } catch (_) {}
 
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.pointerStartPos.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -98,7 +102,7 @@ export class CameraControls {
     const dx = e.clientX - prev.x;
     const dy = e.clientY - prev.y;
 
-    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 7) {
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 14) {
       this.hasMovedSignificantly = true;
     }
 
@@ -121,7 +125,11 @@ export class CameraControls {
   }
 
   onPointerUp(e) {
-    this.domElement.releasePointerCapture(e.pointerId);
+    try {
+      if (this.domElement.hasPointerCapture && this.domElement.hasPointerCapture(e.pointerId)) {
+        this.domElement.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
 
     const start = this.pointerStartPos.get(e.pointerId);
     const elapsed = performance.now() - this.pointerStartTime;
@@ -130,9 +138,9 @@ export class CameraControls {
     if (
       this.pointers.size === 1 &&
       !this.hasMovedSignificantly &&
-      elapsed < 350 &&
+      elapsed < 1000 &&
       start &&
-      Math.hypot(e.clientX - start.x, e.clientY - start.y) < 10
+      Math.hypot(e.clientX - start.x, e.clientY - start.y) < 16
     ) {
       if (this.onTap) {
         this.onTap(e.clientX, e.clientY);

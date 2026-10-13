@@ -71,6 +71,7 @@ export function createNewGameState() {
     activeResearch: null, // { id, title, progressDays, totalDays }
 
     // Kompetitor & Pangsa Pasar
+    totalAudience: 0,
     competitors: createInitialCompetitors(),
     playerMarketShare: 0,
     consecutiveMonthsAsTop1: 0,
@@ -146,7 +147,11 @@ export function loadGame() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (data && data.plots && Array.isArray(data.units)) {
-      gameState = Object.assign(createNewGameState(), data);
+      const fresh = createNewGameState();
+      for (const key of Object.keys(gameState)) {
+        delete gameState[key];
+      }
+      Object.assign(gameState, fresh, data);
       return true;
     }
   } catch (err) {
@@ -162,7 +167,10 @@ export function resetGame() {
     console.warn('Error clearing localStorage:', err);
   }
   const prevTier = gameState.qualityTier;
-  gameState = createNewGameState();
-  gameState.qualityTier = prevTier;
+  const fresh = createNewGameState();
+  for (const key of Object.keys(gameState)) {
+    delete gameState[key];
+  }
+  Object.assign(gameState, fresh, { qualityTier: prevTier });
   return gameState;
 }

@@ -125,19 +125,53 @@ export class BuildingManager {
     }
   }
 
-  raycastPlots(clientX, clientY, camera, plotMeshes) {
-    const mouse = new THREE.Vector2(
-      (clientX / window.innerWidth) * 2 - 1,
-      -(clientY / window.innerHeight) * 2 + 1
-    );
-
-    this.raycaster.setFromCamera(mouse, camera);
-    const intersects = this.raycaster.intersectObjects(plotMeshes, false);
-
-    if (intersects.length > 0) {
-      return intersects[0].object.userData;
+  raycastPlots(clientX, clientY, camera, plotMeshes, domElement = null) {
+    let ndcX = 0;
+    let ndcY = 0;
+    if (domElement && domElement.getBoundingClientRect) {
+      const rect = domElement.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+        ndcY = -((clientY - rect.top) / rect.height) * 2 + 1;
+      } else {
+        ndcX = (clientX / window.innerWidth) * 2 - 1;
+        ndcY = -(clientY / window.innerHeight) * 2 + 1;
+      }
+    } else {
+      ndcX = (clientX / window.innerWidth) * 2 - 1;
+      ndcY = -(clientY / window.innerHeight) * 2 + 1;
     }
-    return null;
+
+    const mouse = new THREE.Vector2(ndcX, ndcY);
+    this.raycaster.setFromCamera(mouse, camera);
+
+    // 1. Raycast kavling dasar
+    const plotHits = this.raycaster.intersectObjects(plotMeshes, false);
+
+    // 2. Raycast bangunan / perancah di atas kavling
+    const buildingList = Array.from(this.buildingsByPlot.values());
+    const buildingHits = buildingList.length > 0 ? this.raycaster.intersectObjects(buildingList, true) : [];
+
+    let bestHit = null;
+    let minDistance = Infinity;
+
+    if (plotHits.length > 0 && plotHits[0].distance < minDistance) {
+      minDistance = plotHits[0].distance;
+      bestHit = plotHits[0].object.userData;
+    }
+
+    if (buildingHits.length > 0 && buildingHits[0].distance < minDistance) {
+      let cur = buildingHits[0].object;
+      while (cur && cur.userData.plotId === undefined && cur.parent) {
+        cur = cur.parent;
+      }
+      if (cur && cur.userData.plotId !== undefined) {
+        const plotMesh = plotMeshes[cur.userData.plotId];
+        bestHit = plotMesh ? plotMesh.userData : { plotId: cur.userData.plotId };
+      }
+    }
+
+    return bestHit;
   }
 
   clearAll() {
